@@ -146,18 +146,41 @@
                     {{-- Home Room --}}
                     <div class="mb-5">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Home Room <span class="text-gray-400 font-normal">(optional)</span>
+                            Home Room <span class="text-gray-400 font-normal">(where this tool is normally stored)</span>
                         </label>
                         <select name="room_id"
-                                class="w-full border-gray-300 rounded-md shadow-sm">
+                                class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="">— None (shared / floating) —</option>
-                            @foreach ($rooms as $room)
-                                <option value="{{ $room->id }}"
-                                    {{ old('room_id', $tool->room_id) == $room->id ? 'selected' : '' }}>
-                                    {{ $room->name }}
-                                </option>
+                            @php
+                                $offices = $rooms->filter(fn($r) => $r->isOffice());
+                                $otherRooms = $rooms->filter(fn($r) => !$r->isOffice());
+                            @endphp
+
+                            @if ($offices->isNotEmpty())
+                                <optgroup label="🏢 Laboratory Offices (Tool Storage / Custodian)">
+                                    @foreach ($offices as $room)
+                                        <option value="{{ $room->id }}"
+                                                {{ old('room_id', $tool->room_id) == $room->id ? 'selected' : '' }}>
+                                            🏢 {{ $room->name }} ({{ $room->departmentShort() }} - {{ $room->location }})
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                            @endif
+
+                            @foreach ($otherRooms->groupBy(fn($r) => $r->department ?: 'General / Shared') as $dept => $roomList)
+                                <optgroup label="🏫 {{ $dept }}">
+                                    @foreach ($roomList as $room)
+                                        <option value="{{ $room->id }}"
+                                                {{ old('room_id', $tool->room_id) == $room->id ? 'selected' : '' }}>
+                                            {{ $room->name }} ({{ $room->location ?? 'Campus' }})
+                                        </option>
+                                    @endforeach
+                                </optgroup>
                             @endforeach
                         </select>
+                        <p class="mt-1 text-xs text-gray-500">
+                            Select <strong>Laboratory Office 109A</strong> or <strong>Laboratory Office 203</strong> for tools kept in custodian offices, or select a specific lab.
+                        </p>
                     </div>
 
                     {{-- Active Toggle --}}

@@ -137,6 +137,18 @@
                  if (val) {
                      this[targetProp] = val;
                  }
+             },
+
+             onRoomSelect(event) {
+                 const opt = event.target.selectedOptions[0];
+                 if (opt && opt.dataset.department) {
+                     if (!this.selectedDepartment) {
+                         this.selectedDepartment = opt.dataset.department;
+                     }
+                     if (!this.deptFilter && this.subjectsByDept[opt.dataset.department]) {
+                         this.deptFilter = opt.dataset.department;
+                     }
+                 }
              }
          }">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8 space-y-6">
@@ -222,6 +234,23 @@
                                           :value="old('borrower_email')" placeholder="e.g., borrower@pup.edu.ph" />
                             <x-input-error class="mt-2" :messages="$errors->get('borrower_email')" />
                         </div>
+
+                        {{-- Department --}}
+                        <div>
+                            <x-input-label for="department" value="Department" />
+                            <select id="department" name="department" x-model="selectedDepartment"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm text-sm">
+                                <option value="">— Auto-detect or Select Department —</option>
+                                @foreach (\App\Models\Tool::DEPARTMENTS as $dept)
+                                    <option value="{{ $dept }}" {{ old('department') === $dept ? 'selected' : '' }}>
+                                        {{ $dept }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Auto-filled when selecting faculty, or auto-detected if left blank.
+                            </p>
+                        </div>
                     </div>
 
                     {{-- ═══════════════════════════════════════════════════════ --}}
@@ -232,24 +261,22 @@
                         <div>
                             <x-input-label for="room_id" value="Select Room to Use *" />
                             <select id="room_id" name="room_id"
+                                    @change="onRoomSelect($event)"
                                     :disabled="type !== 'room'"
                                     :required="type === 'room'"
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm text-sm">
                                 <option value="">— Choose a Room —</option>
-                                <optgroup label="Laboratory Rooms (LAB)">
-                                    @foreach ($rooms->filter(fn($r) => str_starts_with($r->name, 'LAB')) as $r)
-                                        <option value="{{ $r->id }}" {{ old('room_id') == $r->id ? 'selected' : '' }}>
-                                            {{ $r->name }} (Capacity: {{ $r->capacity ?? 'N/A' }})
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                                <optgroup label="Lecture Rooms (LEC)">
-                                    @foreach ($rooms->filter(fn($r) => !str_starts_with($r->name, 'LAB')) as $r)
-                                        <option value="{{ $r->id }}" {{ old('room_id') == $r->id ? 'selected' : '' }}>
-                                            {{ $r->name }} (Capacity: {{ $r->capacity ?? 'N/A' }})
-                                        </option>
-                                    @endforeach
-                                </optgroup>
+                                @foreach ($rooms->groupBy(fn($r) => $r->department ?: 'General / Shared Lecture Rooms') as $dept => $roomList)
+                                    <optgroup label="{{ $dept }} ({{ $roomList->first()->departmentShort() }})">
+                                        @foreach ($roomList as $r)
+                                            <option value="{{ $r->id }}"
+                                                    data-department="{{ $r->department }}"
+                                                    {{ old('room_id') == $r->id ? 'selected' : '' }}>
+                                                {{ $r->isLab() ? '🔬 ' : '📖 ' }}{{ $r->name }} — {{ $r->isLab() ? 'Laboratory Room' : 'Lecture Room' }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
                             </select>
                             <x-input-error class="mt-2" :messages="$errors->get('room_id')" />
                         </div>

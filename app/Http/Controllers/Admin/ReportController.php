@@ -12,37 +12,134 @@ use Illuminate\View\View;
 /**
  * ReportController
  *
- * Aggregates utilization data for Chart.js charts on the Reports page.
- * Accessible to: lab_head only.
+ * Aggregates laboratory and tool utilization data for analytics & research.
+ * Separates Room Utilization from Tool Utilization and breaks down metrics by Department
+ * (DOMIT, DCEET, DEMET, etc.).
  *
- * All data is passed as JSON to Blade via @json() for Chart.js consumption.
- * No heavy queue workers needed — queries are fast on typical lab data volumes.
+ * Accessible to: lab_head only.
  */
 class ReportController extends Controller
 {
     public function index(): View
     {
-        // ── Chart 1: Checkouts per day (last 14 days) ─────────────────────
-        $days   = collect(range(13, 0))->map(fn ($d) => now()->subDays($d)->format('Y-m-d'));
-        $daily  = Transaction::selectRaw('DATE(checked_out_at) as date, COUNT(*) as count')
+        // ── 1. Department Breakdown ────────────────────────────────────────
+        $allDeptNames = Transaction::whereNotNull('department')->distinct()->pluck('department')
+            ->merge(Tool::whereNotNull('department')->distinct()->pluck('department'))
+            ->merge(collect(Tool::DEPARTMENTS))
+            ->unique()
+            ->filter();
+
+        $deptStats = [];
+        foreach ($allDeptNames as $dept) {
+            $short = match($dept) {
+                'Department of Office Management and Information Technology' => 'DOMIT',
+                'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+                'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
+                'Department of Civil and Railway Engineering Technology' => 'DCRET',
+                'College of Science' => 'CS',
+                default => substr($dept, 0, 15),
+            };
+
+            $roomTx = Transaction::rooms()->where('department', $dept)->get();
+            $toolTx = Transaction::tools()->where('department', $dept)->with('items')->get();
+
+            $roomCount = $roomTx->count();
+            $toolCount = $toolTx->count();
+
+            // Total tool physical units
+            $toolUnits = 0;
+            foreach ($toolTx as $tx) {
+                $toolUnits += $tx->total_quantity_borrowed;
+            }
+
+            // Room duration in hours
+            $roomMinutes = 0;
+            foreach ($roomTx as $tx) {
+                $end = $tx->returned_at ?: ($tx->status === 'open' ? now() : $tx->expected_return_at);
+                if ($end && $tx->checked_out_at) {
+                    $roomMinutes += max(0, $tx->checked_out_at->diffInMinutes($end));
+                }
+            }
+            $roomHours = round($roomMinutes / 60, 1);
+
+            $deptStats[] = [
+                'name'           => $dept,
+                'short'          => $short,
+                'room_count'     => $roomCount,
+                'room_hours'     => $roomHours,
+                'tool_count'     => $toolCount,
+                'tool_units'     => $toolUnits,
+                'total_activity' => $roomCount + $toolCount,
+            ];
+        }
+
+        // Sort departments by total activity descending
+        usort($deptStats, fn($a, $b) => $b['total_activity'] <=> $a['total_activity']);
+
+        $deptChartLabels = array_column($deptStats, 'short');
+        $deptChartRooms  = array_column($deptStats, 'room_count');
+        $deptChartTools  = array_column($deptStats, 'tool_count');
+        $deptChartHours  = array_column($deptStats, 'room_hours');
+        $deptChartUnits  = array_column($deptStats, 'tool_units');
+
+        // ── 2. Timeline: Checkouts per day (last 14 days) ──────────────────
+        $days = collect(range(13, 0))->map(fn ($d) => now()->subDays($d)->format('Y-m-d'));
+
+        $dailyRooms = Transaction::rooms()
+            ->selectRaw('DATE(checked_out_at) as date, COUNT(*) as count')
             ->where('checked_out_at', '>=', now()->subDays(13)->startOfDay())
             ->groupBy('date')
             ->pluck('count', 'date');
 
-        $dailyLabels = $days->map(fn ($d) => date('M d', strtotime($d)))->values();
-        $dailyData   = $days->map(fn ($d) => $daily->get($d, 0))->values();
+        $dailyTools = Transaction::tools()
+            ->selectRaw('DATE(checked_out_at) as date, COUNT(*) as count')
+            ->where('checked_out_at', '>=', now()->subDays(13)->startOfDay())
+            ->groupBy('date')
+            ->pluck('count', 'date');
 
-        // ── Chart 2: Checkouts by day of week ─────────────────────────────
-        // MySQL DAYOFWEEK: 1=Sunday, 2=Monday ... 7=Saturday
-        $dowData = Transaction::selectRaw('DAYOFWEEK(checked_out_at) as dow, COUNT(*) as count')
+        $dailyLabels   = $days->map(fn ($d) => date('M d', strtotime($d)))->values();
+        $dailyRoomData = $days->map(fn ($d) => $dailyRooms->get($d, 0))->values();
+        $dailyToolData = $days->map(fn ($d) => $dailyTools->get($d, 0))->values();
+
+        // ── 3. Checkouts by day of week ────────────────────────────────────
+        $dowRoomData = Transaction::rooms()
+            ->selectRaw('DAYOFWEEK(checked_out_at) as dow, COUNT(*) as count')
             ->groupBy('dow')
             ->pluck('count', 'dow');
 
-        $dowLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        $dowValues = collect(range(1, 7))->map(fn ($d) => $dowData->get($d, 0))->values();
+        $dowToolData = Transaction::tools()
+            ->selectRaw('DAYOFWEEK(checked_out_at) as dow, COUNT(*) as count')
+            ->groupBy('dow')
+            ->pluck('count', 'dow');
 
-        // ── Chart 3: Top 8 rooms by checkout count ────────────────────────
-        $topRooms = Transaction::whereNotNull('room_id')
+        $dowLabels     = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        $dowRoomValues = collect(range(1, 7))->map(fn ($d) => $dowRoomData->get($d, 0))->values();
+        $dowToolValues = collect(range(1, 7))->map(fn ($d) => $dowToolData->get($d, 0))->values();
+
+        // ── 4. Room Utilization Specifics ──────────────────────────────────
+        $totalRoomTransactions = Transaction::rooms()->count();
+        $returnedRoomCount     = Transaction::rooms()->returned()->count();
+
+        // Total room hours across all logged transactions
+        $allRoomMinutes = 0;
+        foreach (Transaction::rooms()->get() as $rtx) {
+            $end = $rtx->returned_at ?: ($rtx->status === 'open' ? now() : $rtx->expected_return_at);
+            if ($end && $rtx->checked_out_at) {
+                $allRoomMinutes += max(0, $rtx->checked_out_at->diffInMinutes($end));
+            }
+        }
+        $totalRoomHours = round($allRoomMinutes / 60, 1);
+
+        // Average room checkout duration (hours)
+        $avgRoomDuration = Transaction::rooms()
+            ->returned()
+            ->whereNotNull('returned_at')
+            ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, checked_out_at, returned_at)) as avg_minutes')
+            ->value('avg_minutes');
+        $avgRoomDurationHours = $avgRoomDuration ? round($avgRoomDuration / 60, 1) : 0;
+
+        // Top 8 rooms by checkout count
+        $topRooms = Transaction::rooms()
             ->select('room_id', DB::raw('COUNT(*) as count'))
             ->groupBy('room_id')
             ->orderByDesc('count')
@@ -53,39 +150,9 @@ class ReportController extends Controller
         $topRoomLabels = $topRooms->map(fn ($t) => $t->room?->name ?? '?')->values();
         $topRoomData   = $topRooms->pluck('count')->values();
 
-        // ── Chart 4: Top 8 tools by checkout count ────────────────────────
-        $topTools = Transaction::whereNotNull('tool_id')
-            ->select('tool_id', DB::raw('COUNT(*) as count'))
-            ->groupBy('tool_id')
-            ->orderByDesc('count')
-            ->limit(8)
-            ->with('tool')
-            ->get();
-
-        $topToolLabels = $topTools->map(fn ($t) => $t->tool?->name ?? '?')->values();
-        $topToolData   = $topTools->pluck('count')->values();
-
-        // ── Chart 5: Room vs Tool checkout split (doughnut) ───────────────
-        $roomOnlyCount = Transaction::whereNotNull('room_id')->whereNull('tool_id')->count();
-        $toolOnlyCount = Transaction::whereNull('room_id')->whereNotNull('tool_id')->count();
-        $bothCount     = Transaction::whereNotNull('room_id')->whereNotNull('tool_id')->count();
-
-        // ── Summary stats ─────────────────────────────────────────────────
-        $totalTransactions = Transaction::count();
-        $totalReturned     = Transaction::returned()->count();
-
-        // Average checkout duration for returned room transactions (in hours)
-        $avgDuration = Transaction::returned()
-            ->whereNotNull('room_id')
-            ->whereNotNull('returned_at')
-            ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, checked_out_at, returned_at)) as avg_minutes')
-            ->value('avg_minutes');
-
-        $avgDurationHours = $avgDuration ? round($avgDuration / 60, 1) : 0;
-
-        // ── Average duration by room (for returned room transactions) ─────
-        $avgByRoom = Transaction::returned()
-            ->whereNotNull('room_id')
+        // Average duration by room
+        $avgByRoom = Transaction::rooms()
+            ->returned()
             ->whereNotNull('returned_at')
             ->select('room_id', DB::raw('AVG(TIMESTAMPDIFF(MINUTE, checked_out_at, returned_at)) as avg_minutes'))
             ->groupBy('room_id')
@@ -97,14 +164,94 @@ class ReportController extends Controller
         $avgRoomLabels = $avgByRoom->map(fn ($r) => $r->room?->name ?? '?')->values();
         $avgRoomData   = $avgByRoom->map(fn ($r) => round($r->avg_minutes / 60, 1))->values();
 
+        // ── 5. Tool Utilization Specifics ──────────────────────────────────
+        $totalToolTransactions = Transaction::tools()->count();
+        $returnedToolCount     = Transaction::tools()->returned()->count();
+
+        // Total physical units borrowed
+        $itemToolCounts = DB::table('transaction_items')
+            ->select('tool_id', DB::raw('SUM(quantity_borrowed) as total_qty'))
+            ->groupBy('tool_id')
+            ->pluck('total_qty', 'tool_id');
+
+        $directToolCounts = DB::table('transactions')
+            ->whereNotNull('tool_id')
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))->from('transaction_items')->whereColumn('transaction_items.transaction_id', 'transactions.id');
+            })
+            ->select('tool_id', DB::raw('SUM(quantity) as total_qty'))
+            ->groupBy('tool_id')
+            ->pluck('total_qty', 'tool_id');
+
+        $combinedToolCounts = [];
+        foreach ($itemToolCounts as $tid => $qty) {
+            $combinedToolCounts[$tid] = ($combinedToolCounts[$tid] ?? 0) + (int) $qty;
+        }
+        foreach ($directToolCounts as $tid => $qty) {
+            $combinedToolCounts[$tid] = ($combinedToolCounts[$tid] ?? 0) + (int) $qty;
+        }
+
+        $totalToolUnitsBorrowed = array_sum($combinedToolCounts);
+
+        // Top 8 tools by units borrowed
+        arsort($combinedToolCounts);
+        $topToolIds  = array_slice(array_keys($combinedToolCounts), 0, 8);
+        $toolsMap    = Tool::whereIn('id', $topToolIds)->get()->keyBy('id');
+
+        $topToolLabels = [];
+        $topToolData   = [];
+        foreach ($topToolIds as $tid) {
+            if (isset($toolsMap[$tid])) {
+                $topToolLabels[] = $toolsMap[$tid]->name;
+                $topToolData[]   = (int) $combinedToolCounts[$tid];
+            }
+        }
+
+        // Tool categories breakdown
+        $toolCategories = DB::table('tools')
+            ->join('transactions', 'tools.id', '=', 'transactions.tool_id')
+            ->select('tools.category', DB::raw('COUNT(*) as count'))
+            ->groupBy('tools.category')
+            ->orderByDesc('count')
+            ->pluck('count', 'category');
+
+        $toolCatLabels = $toolCategories->keys()->values();
+        $toolCatData   = $toolCategories->values()->values();
+
+        // Overall totals for top stat row
+        $totalTransactions = Transaction::count();
+        $totalReturned     = Transaction::returned()->count();
+
         return view('admin.reports.index', compact(
-            'dailyLabels', 'dailyData',
-            'dowLabels', 'dowValues',
-            'topRoomLabels', 'topRoomData',
-            'topToolLabels', 'topToolData',
-            'roomOnlyCount', 'toolOnlyCount', 'bothCount',
-            'totalTransactions', 'totalReturned', 'avgDurationHours',
-            'avgRoomLabels', 'avgRoomData',
+            'deptStats',
+            'deptChartLabels',
+            'deptChartRooms',
+            'deptChartTools',
+            'deptChartHours',
+            'deptChartUnits',
+            'dailyLabels',
+            'dailyRoomData',
+            'dailyToolData',
+            'dowLabels',
+            'dowRoomValues',
+            'dowToolValues',
+            'totalRoomTransactions',
+            'returnedRoomCount',
+            'totalRoomHours',
+            'avgRoomDurationHours',
+            'topRoomLabels',
+            'topRoomData',
+            'avgRoomLabels',
+            'avgRoomData',
+            'totalToolTransactions',
+            'returnedToolCount',
+            'totalToolUnitsBorrowed',
+            'topToolLabels',
+            'topToolData',
+            'toolCatLabels',
+            'toolCatData',
+            'totalTransactions',
+            'totalReturned'
         ));
     }
 }

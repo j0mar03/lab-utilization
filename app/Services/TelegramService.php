@@ -10,13 +10,14 @@ use Illuminate\Support\Facades\Log;
 /**
  * TelegramService
  *
- * Sends messages to a Telegram chat via the Bot API.
+ * Sends formatted utilization log notifications to a Telegram chat/group via Bot API.
  * All bot credentials are read from config/telegram.php (which reads .env).
  * No tokens are hardcoded here.
  *
  * Usage:
  *   app(TelegramService::class)->sendCheckoutNotification($transaction);
  *   app(TelegramService::class)->sendReturnNotification($transaction);
+ *   app(TelegramService::class)->sendOverdueAlert($transaction);
  *   app(TelegramService::class)->sendRawMessage('Hello, lab!', $chatId);
  */
 class TelegramService
@@ -27,8 +28,8 @@ class TelegramService
 
     public function __construct()
     {
-        $this->botToken     = config('telegram.bot_token', '');
-        $this->apiUrl       = config('telegram.api_url', 'https://api.telegram.org/bot');
+        $this->botToken      = config('telegram.bot_token', '');
+        $this->apiUrl        = config('telegram.api_url', 'https://api.telegram.org/bot');
         $this->defaultChatId = config('telegram.default_chat_id');
     }
 
@@ -38,23 +39,42 @@ class TelegramService
 
     /**
      * Send a checkout notification to the lab Telegram group.
-     * This mirrors the notification your current Apps Script sends.
      */
     public function sendCheckoutNotification(Transaction $transaction): bool
     {
-        $subject = $transaction->subjectDescription();
-        $time    = $transaction->checked_out_at->format('M d, Y g:i A');
+        $transaction->loadMissing(['room', 'tool', 'items.tool']);
 
-        $message  = "🔑 *LAB CHECKOUT*\n";
-        $message .= "───────────────────\n";
-        $message .= "👤 *Faculty:* {$transaction->borrower_name}\n";
-        $message .= "📦 *Room/Tool:* {$subject}\n";
+        $isRoom = $transaction->isRoom();
+        $icon   = $isRoom ? '🏫' : '🔧';
+        $title  = $isRoom ? 'LAB ROOM CHECKOUT' : 'EQUIPMENT BORROWED';
+        $dept   = $transaction->departmentShort() ?: 'General / Shared';
+        $time   = $transaction->checked_out_at ? $transaction->checked_out_at->format('M d, Y g:i A') : now()->format('M d, Y g:i A');
 
-        if ($transaction->subject) {
-            $message .= "📚 *Subject:* {$transaction->subject}\n";
+        $message  = "{$icon} *{$title}*\n";
+        $message .= "─────────────────────────\n";
+        $message .= "👤 *Borrower:* {$transaction->borrower_name}\n";
+        $message .= "🏢 *Department:* {$dept}\n";
+
+        if ($isRoom) {
+            $message .= "🚪 *Room:* " . ($transaction->room?->name ?? 'Room') . "\n";
+        } else {
+            if ($transaction->items && $transaction->items->isNotEmpty()) {
+                $itemList = $transaction->items->map(function ($item) {
+                    $name = $item->tool?->name ?? 'Tool';
+                    return "   • {$name} (×{$item->quantity_borrowed})";
+                })->join("\n");
+                $message .= "📦 *Equipment Items:*\n{$itemList}\n";
+            } elseif ($transaction->tool) {
+                $qty = $transaction->quantity > 1 ? " (×{$transaction->quantity})" : '';
+                $message .= "📦 *Equipment:* {$transaction->tool->name}{$qty}\n";
+            }
         }
 
-        $message .= "🕐 *Time:* {$time}\n";
+        if ($transaction->subject) {
+            $message .= "📚 *Purpose / Subject:* {$transaction->subject}\n";
+        }
+
+        $message .= "🕐 *Time Out:* {$time}\n";
 
         if ($transaction->expected_return_at) {
             $returnTime = $transaction->expected_return_at->format('g:i A');
@@ -73,19 +93,35 @@ class TelegramService
      */
     public function sendReturnNotification(Transaction $transaction): bool
     {
-        $subject    = $transaction->subjectDescription();
-        $returnTime = $transaction->returned_at->format('M d, Y g:i A');
+        $transaction->loadMissing(['room', 'tool', 'items.tool']);
 
-        $message  = "✅ *ITEM RETURNED*\n";
-        $message .= "───────────────────\n";
-        $message .= "👤 *Returned by:* {$transaction->borrower_name}\n";
-        $message .= "📦 *Item:* {$subject}\n";
-        $message .= "🕐 *Returned at:* {$returnTime}\n";
+        $isRoom     = $transaction->isRoom();
+        $icon       = $isRoom ? '🏫' : '✅';
+        $title      = $isRoom ? 'ROOM VACATED' : ($transaction->status === 'partially_returned' ? 'PARTIAL RETURN' : 'ITEM RETURNED');
+        $dept       = $transaction->departmentShort() ?: 'General / Shared';
+        $returnTime = $transaction->returned_at ? $transaction->returned_at->format('M d, Y g:i A') : now()->format('M d, Y g:i A');
+
+        $message  = "{$icon} *{$title}*\n";
+        $message .= "─────────────────────────\n";
+        $message .= "👤 *Borrower:* {$transaction->borrower_name}\n";
+        $message .= "🏢 *Department:* {$dept}\n";
+
+        if ($isRoom) {
+            $message .= "🚪 *Room:* " . ($transaction->room?->name ?? 'Room') . "\n";
+        } else {
+            $message .= "📦 *Item:* " . $transaction->subjectDescription() . "\n";
+        }
+
+        $message .= "🕐 *Returned At:* {$returnTime}\n";
+
+        if ($transaction->status === 'partially_returned') {
+            $message .= "⚠️ *Status:* Partially Returned (some items still checked out)\n";
+        }
 
         // Flag if it was overdue before return
-        if ($transaction->expected_return_at &&
-            $transaction->returned_at->gt($transaction->expected_return_at)) {
-            $message .= "⚠️ *Note:* Returned after expected time.\n";
+        if ($transaction->expected_return_at && $transaction->returned_at && $transaction->returned_at->gt($transaction->expected_return_at)) {
+            $diff = $transaction->returned_at->diffForHumans($transaction->expected_return_at, true);
+            $message .= "⚠️ *Note:* Returned {$diff} after expected return time.\n";
         }
 
         return $this->send($message, $this->defaultChatId, $transaction, 'telegram');
@@ -93,19 +129,25 @@ class TelegramService
 
     /**
      * Send an overdue alert to the lab Telegram group.
-     * Typically called by a scheduled Artisan command.
      */
     public function sendOverdueAlert(Transaction $transaction): bool
     {
-        $subject    = $transaction->subjectDescription();
-        $since      = $transaction->expected_return_at->format('M d, Y g:i A');
+        $transaction->loadMissing(['room', 'tool', 'items.tool']);
 
-        $message  = "🚨 *OVERDUE ITEM*\n";
-        $message .= "───────────────────\n";
+        $dept  = $transaction->departmentShort() ?: 'General / Shared';
+        $since = $transaction->expected_return_at ? $transaction->expected_return_at->diffForHumans() : 'now';
+
+        $message  = "🚨 *OVERDUE ALERT*\n";
+        $message .= "─────────────────────────\n";
         $message .= "👤 *Borrower:* {$transaction->borrower_name}\n";
-        $message .= "📦 *Item:* {$subject}\n";
-        $message .= "⏰ *Was due at:* {$since}\n";
-        $message .= "📌 Please follow up with the borrower.\n";
+        $message .= "🏢 *Department:* {$dept}\n";
+        $message .= "📦 *Item:* " . $transaction->subjectDescription() . "\n";
+
+        if ($transaction->expected_return_at) {
+            $message .= "⏰ *Was Due:* " . $transaction->expected_return_at->format('M d, g:i A') . " ({$since})\n";
+        }
+
+        $message .= "📌 *Action:* Please follow up with the borrower.\n";
 
         return $this->send($message, $this->defaultChatId, $transaction, 'telegram');
     }
@@ -113,13 +155,65 @@ class TelegramService
     /**
      * Send a raw text message to a specific chat.
      * Useful for testing or custom one-off notifications.
-     *
-     * @param string      $message  Plain text or Markdown message
-     * @param string|null $chatId   Defaults to TELEGRAM_DEFAULT_CHAT_ID if null
      */
     public function sendRawMessage(string $message, ?string $chatId = null): bool
     {
         return $this->send($message, $chatId ?? $this->defaultChatId);
+    }
+
+    /**
+     * Test connection to Telegram bot.
+     * Returns array with success status and details.
+     */
+    public function testConnection(?string $chatId = null): array
+    {
+        $targetChatId = $chatId ?: $this->defaultChatId;
+
+        if (empty($this->botToken)) {
+            return [
+                'success' => false,
+                'message' => 'TELEGRAM_BOT_TOKEN is not configured in .env',
+            ];
+        }
+
+        if (empty($targetChatId)) {
+            return [
+                'success' => false,
+                'message' => 'TELEGRAM_DEFAULT_CHAT_ID is not configured in .env',
+            ];
+        }
+
+        $testMsg = "🤖 *Lab System Telegram Test*\n"
+                 . "─────────────────────────\n"
+                 . "✅ Bot connection verified successfully!\n"
+                 . "🕐 Timestamp: " . now()->format('Y-m-d H:i:s') . "\n"
+                 . "🏫 PUP-ITECH Lab Utilization System is online.";
+
+        try {
+            $response = Http::timeout(10)
+                ->post("{$this->apiUrl}{$this->botToken}/sendMessage", [
+                    'chat_id'    => $targetChatId,
+                    'text'       => $testMsg,
+                    'parse_mode' => 'Markdown',
+                ]);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => 'Test message sent successfully to Telegram chat ' . $targetChatId,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Telegram API error: ' . $response->body(),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

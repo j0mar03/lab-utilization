@@ -99,7 +99,16 @@ class TransactionController extends Controller
      */
     public function create(): View
     {
-        $rooms     = Room::orderByRaw("CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END, name")->get();
+        $rooms = Room::orderByRaw("
+            CASE 
+                WHEN department = 'Department of Computer and Electronics Engineering Technology' THEN 1
+                WHEN department = 'Department of Office Management and Information Technology' THEN 2
+                WHEN department = 'Department of Electrical and Mechanical Engineering Technology' THEN 3
+                ELSE 4
+            END,
+            CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END,
+            name
+        ")->get();
         $tools     = Tool::where('is_active', true)->orderBy('department')->orderBy('category')->orderBy('name')->get();
         $faculties = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
         $subjects  = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
@@ -157,6 +166,7 @@ class TransactionController extends Controller
                 'quantity'           => 1,
                 'borrower_name'      => $validated['borrower_name'],
                 'borrower_email'     => $validated['borrower_email'] ?? null,
+                'department'         => $request->input('department') ?: null,
                 'subject'            => $validated['subject'],
                 'checked_out_at'     => $timeIn,
                 'returned_at'        => $timeOut,
@@ -239,6 +249,7 @@ class TransactionController extends Controller
                 'quantity'           => $totalQuantity,
                 'borrower_name'      => $validated['borrower_name'],
                 'borrower_email'     => $validated['borrower_email'] ?? null,
+                'department'         => $request->input('department') ?: null,
                 'subject'            => $request->input('tool_subject') ?: ($validated['subject'] ?? null),
                 'checked_out_at'     => $timeIn,
                 'returned_at'        => $timeOut,

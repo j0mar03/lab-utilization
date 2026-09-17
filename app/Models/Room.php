@@ -11,8 +11,11 @@ class Room extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const DEPARTMENTS = Tool::DEPARTMENTS;
+
     protected $fillable = [
         'name',
+        'department',
         'location',
         'capacity',
         'has_wifi',
@@ -26,6 +29,34 @@ class Room extends Model
             'has_wifi' => 'boolean',
             'capacity' => 'integer',
         ];
+    }
+
+    public function departmentShort(): string
+    {
+        return match($this->department) {
+            'Department of Office Management and Information Technology' => 'DOMIT',
+            'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+            'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
+            'DEMET & DOMIT', 'DEMET / DOMIT', 'DEMET and DOMIT' => 'DEMET & DOMIT',
+            'Department of Civil and Railway Engineering Technology' => 'DCRET',
+            'College of Science' => 'CS',
+            default => $this->department ? substr($this->department, 0, 15) : 'General / Shared',
+        };
+    }
+
+    public function isOffice(): bool
+    {
+        return str_contains(strtoupper($this->name), 'OFFICE');
+    }
+
+    public function isLab(): bool
+    {
+        return str_starts_with($this->name, 'LAB') && !$this->isOffice();
+    }
+
+    public function isLecture(): bool
+    {
+        return str_starts_with($this->name, 'LEC');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -70,5 +101,28 @@ class Room extends Model
         return $query->whereDoesntHave('transactions', function ($q) {
             $q->where('status', 'open');
         });
+    }
+
+    public function scopeDepartment($query, ?string $dept)
+    {
+        if ($dept) {
+            return $query->where('department', $dept);
+        }
+        return $query;
+    }
+
+    public function scopeOffices($query)
+    {
+        return $query->where('name', 'LIKE', '%Office%');
+    }
+
+    public function scopeLaboratories($query)
+    {
+        return $query->where('name', 'LIKE', 'LAB%')->where('name', 'NOT LIKE', '%Office%');
+    }
+
+    public function scopeLectures($query)
+    {
+        return $query->where('name', 'LIKE', 'LEC%');
     }
 }

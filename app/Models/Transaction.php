@@ -27,6 +27,7 @@ class Transaction extends Model
         'quantity',
         'borrower_name',
         'borrower_email',
+        'department',
         'subject',
         'checked_out_at',
         'expected_return_at',
@@ -44,6 +45,69 @@ class Transaction extends Model
             'returned_at'        => 'datetime',
             'quantity'           => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Transaction $transaction) {
+            if (empty($transaction->department)) {
+                $transaction->department = static::resolveDepartmentFor(
+                    $transaction->room_id,
+                    $transaction->tool_id,
+                    $transaction->borrower_name,
+                    $transaction->subject
+                );
+            }
+        });
+    }
+
+    public static function resolveDepartmentFor(?int $roomId = null, ?int $toolId = null, ?string $borrowerName = null, ?string $subject = null): ?string
+    {
+        if ($roomId) {
+            $room = Room::find($roomId);
+            if ($room && !empty($room->department)) {
+                return $room->department;
+            }
+        }
+
+        if ($toolId) {
+            $tool = Tool::find($toolId);
+            if ($tool && !empty($tool->department)) {
+                return $tool->department;
+            }
+        }
+
+        if (!empty($borrowerName)) {
+            $cleanBorrower = strtolower(trim(str_replace(['engr.', 'prof.', 'dr.', 'mr.', 'ms.', 'mrs.', ','], '', $borrowerName)));
+            $borrowerWords = array_filter(explode(' ', $cleanBorrower), fn($w) => strlen($w) > 2);
+
+            $faculties = Faculty::all();
+            foreach ($faculties as $f) {
+                $cleanFaculty = strtolower(trim(str_replace(['engr.', 'prof.', 'dr.', 'mr.', 'ms.', 'mrs.', ','], '', $f->name)));
+                if (str_contains($cleanBorrower, $cleanFaculty) || str_contains($cleanFaculty, $cleanBorrower)) {
+                    return $f->department;
+                }
+
+                $facultyWords = array_filter(explode(' ', $cleanFaculty), fn($w) => strlen($w) > 2);
+                // Check if last name or main name word matches
+                $matchedWords = array_intersect($borrowerWords, $facultyWords);
+                if (count($matchedWords) >= 1 && (count($borrowerWords) <= 2 || count($matchedWords) >= 2)) {
+                    return $f->department;
+                }
+            }
+        }
+
+        if (!empty($subject)) {
+            $cleanSubj = strtolower($subject);
+            $subjects = Subject::all();
+            foreach ($subjects as $s) {
+                if (str_contains($cleanSubj, strtolower($s->code)) || str_contains($cleanSubj, strtolower($s->name))) {
+                    return $s->department;
+                }
+            }
+        }
+
+        return null;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -105,6 +169,50 @@ class Transaction extends Model
     public function scopeReturned($query)
     {
         return $query->where('status', 'returned');
+    }
+
+    public function scopeRooms($query)
+    {
+        return $query->whereNotNull('room_id');
+    }
+
+    public function scopeTools($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNotNull('tool_id')
+              ->orWhereHas('items');
+        });
+    }
+
+    public function scopeDepartment($query, ?string $dept)
+    {
+        if ($dept) {
+            return $query->where('department', $dept);
+        }
+        return $query;
+    }
+
+    public function isRoom(): bool
+    {
+        return $this->room_id !== null;
+    }
+
+    public function isTool(): bool
+    {
+        return $this->tool_id !== null || ($this->relationLoaded('items') ? $this->items->isNotEmpty() : $this->items()->exists());
+    }
+
+    public function departmentShort(): string
+    {
+        return match($this->department) {
+            'Department of Office Management and Information Technology' => 'DOMIT',
+            'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+            'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
+            'DEMET & DOMIT', 'DEMET / DOMIT', 'DEMET and DOMIT' => 'DEMET & DOMIT',
+            'Department of Civil and Railway Engineering Technology' => 'DCRET',
+            'College of Science' => 'CS',
+            default => $this->department ? substr($this->department, 0, 15) : 'General',
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────────────

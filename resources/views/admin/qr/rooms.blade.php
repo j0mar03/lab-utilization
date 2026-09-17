@@ -55,7 +55,12 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 @foreach ($labRooms as $room)
                     <div class="bg-white border-2 border-blue-200 rounded-xl p-4 text-center shadow-sm">
-                        <div class="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">LAB ROOM</div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">LAB ROOM</span>
+                            <span class="text-[10px] font-semibold px-1.5 py-0.2 bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                                {{ $room->departmentShort() }}
+                            </span>
+                        </div>
                         <div class="text-xl font-black text-gray-900 mb-3">{{ $room->name }}</div>
                         <div class="flex justify-center mb-3">
                             {!! SimpleSoftwareIO\QrCode\Facades\QrCode::size(120)
@@ -81,7 +86,12 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 @foreach ($lecRooms as $room)
                     <div class="bg-white border-2 border-gray-200 rounded-xl p-4 text-center shadow-sm">
-                        <div class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">LECTURE</div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">LECTURE</span>
+                            <span class="text-[10px] font-semibold px-1.5 py-0.2 bg-gray-100 text-gray-700 border border-gray-300 rounded">
+                                {{ $room->departmentShort() }}
+                            </span>
+                        </div>
                         <div class="text-xl font-black text-gray-900 mb-3">{{ $room->name }}</div>
                         <div class="flex justify-center mb-3">
                             {!! SimpleSoftwareIO\QrCode\Facades\QrCode::size(120)

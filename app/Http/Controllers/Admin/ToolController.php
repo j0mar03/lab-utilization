@@ -72,7 +72,14 @@ class ToolController extends Controller
      */
     public function create(): View
     {
-        $rooms       = Room::orderBy('name')->get();
+        $rooms = Room::orderByRaw("
+            CASE 
+                WHEN name LIKE '%Office%' THEN 0 
+                WHEN name LIKE 'LAB%' THEN 1 
+                ELSE 2 
+            END, 
+            name
+        ")->get();
         $categories  = Tool::distinct()->orderBy('category')->pluck('category');
         $departments = Tool::DEPARTMENTS;
 
@@ -117,7 +124,14 @@ class ToolController extends Controller
      */
     public function edit(Tool $tool): View
     {
-        $rooms       = Room::orderBy('name')->get();
+        $rooms = Room::orderByRaw("
+            CASE 
+                WHEN name LIKE '%Office%' THEN 0 
+                WHEN name LIKE 'LAB%' THEN 1 
+                ELSE 2 
+            END, 
+            name
+        ")->get();
         $categories  = Tool::distinct()->orderBy('category')->pluck('category');
         $departments = Tool::DEPARTMENTS;
 
