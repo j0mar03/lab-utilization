@@ -14,6 +14,18 @@ services:
     environment:
       - TZ=Asia/Manila
       - HOME=/tmp
+      - APP_ENV=production
+      - APP_DEBUG=false
+      # Connect to existing facultyportfolio-db on VPS
+      - DB_CONNECTION=mysql
+      - DB_HOST=facultyportfolio-db
+      - DB_PORT=3306
+      - DB_DATABASE=lab_utilization
+      - DB_USERNAME=lab_user
+      - DB_PASSWORD=LabSystem2026!Secure
+      # Telegram Bot Notifications
+      - TELEGRAM_BOT_TOKEN=8375004820:AAFEqfIxsR5gqbthXSrq6_-76ZpB57nCF_M
+      - TELEGRAM_DEFAULT_CHAT_ID=-1003201567471
     networks:
       - facultyportfolio_default
 
@@ -25,11 +37,39 @@ services:
     container_name: lab-utilization-web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8088:80"
+      - "8088:80"
     depends_on:
       - app
     volumes:
       - ./:/var/www/html
+    networks:
+      - facultyportfolio_default
+
+  # ── Automated Scheduler (Cron for Overdue Telegram Alerts) ─────────────
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: lab-utilization-scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - TZ=Asia/Manila
+      - HOME=/tmp
+      - APP_ENV=production
+      - DB_CONNECTION=mysql
+      - DB_HOST=facultyportfolio-db
+      - DB_PORT=3306
+      - DB_DATABASE=lab_utilization
+      - DB_USERNAME=lab_user
+      - DB_PASSWORD=LabSystem2026!Secure
+      - TELEGRAM_BOT_TOKEN=8375004820:AAFEqfIxsR5gqbthXSrq6_-76ZpB57nCF_M
+      - TELEGRAM_DEFAULT_CHAT_ID=-1003201567471
+    entrypoint: ["sh", "-c", "sleep 15; while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"]
+    depends_on:
+      - app
     networks:
       - facultyportfolio_default
 
