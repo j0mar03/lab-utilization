@@ -1,0 +1,444 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Faculty;
+use App\Models\Room;
+use App\Models\Subject;
+use App\Models\Tool;
+use App\Models\Transaction;
+use App\Models\TransactionItem;
+use App\Services\TelegramService;
+use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\View\View;
+
+/**
+ * Admin Transaction Controller
+ *
+ * Displays full transaction history with filters, CSV export,
+ * and direct manual checkout & return management for SA and Lab Head.
+ * Accessible to: lab_head, student_assistant
+ */
+class TransactionController extends Controller
+{
+    public function __construct(private TelegramService $telegram)
+    {
+    }
+
+    /**
+     * Paginated, filterable transaction history.
+     * GET /admin/transactions
+     */
+    public function index(Request $request): View
+    {
+        $query = Transaction::with(['room', 'tool', 'items.tool', 'user'])
+            ->latest('checked_out_at');
+
+        // ── Filter: Status ────────────────────────────────────────────────
+        if ($request->filled('status') && in_array($request->status, ['open', 'partially_returned', 'returned', 'overdue'])) {
+            $query->where('status', $request->status);
+        }
+
+        // ── Filter: Room ──────────────────────────────────────────────────
+        if ($request->filled('room_id')) {
+            $query->where('room_id', $request->room_id);
+        }
+
+        // ── Filter: Tool ──────────────────────────────────────────────────
+        if ($request->filled('tool_id')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('tool_id', $request->tool_id)
+                  ->orWhereHas('items', function ($iq) use ($request) {
+                      $iq->where('tool_id', $request->tool_id);
+                  });
+            });
+        }
+
+        // ── Filter: Borrower name search ──────────────────────────────────
+        if ($request->filled('borrower')) {
+            $query->where('borrower_name', 'like', '%' . $request->borrower . '%');
+        }
+
+        // ── Filter: Date range ────────────────────────────────────────────
+        if ($request->filled('date_from')) {
+            $query->whereDate('checked_out_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('checked_out_at', '<=', $request->date_to);
+        }
+
+        // ── Filter: Source ────────────────────────────────────────────────
+        if ($request->filled('source') && in_array($request->source, ['google_form', 'qr_scan', 'dashboard'])) {
+            $query->where('source', $request->source);
+        }
+
+        $transactions = $query->paginate(25)->withQueryString();
+
+        // Dropdown options for filter selects
+        $rooms = Room::orderByRaw("CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END, name")->get();
+        $tools = Tool::orderBy('category')->orderBy('name')->get();
+
+        // Summary counts for the filter result
+        $totalOpen     = (clone $query)->where('status', 'open')->count();
+        $totalPartial  = (clone $query)->where('status', 'partially_returned')->count();
+        $totalOverdue  = (clone $query)->where('status', 'overdue')->count();
+        $totalReturned = (clone $query)->where('status', 'returned')->count();
+
+        return view('admin.transactions.index', compact(
+            'transactions', 'rooms', 'tools', 'totalOpen', 'totalPartial', 'totalOverdue', 'totalReturned'
+        ));
+    }
+
+    /**
+     * Show form to manually record a transaction (Room or Tool).
+     * GET /admin/transactions/create
+     */
+    public function create(): View
+    {
+        $rooms     = Room::orderByRaw("CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END, name")->get();
+        $tools     = Tool::where('is_active', true)->orderBy('department')->orderBy('category')->orderBy('name')->get();
+        $faculties = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
+        $subjects  = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
+
+        return view('admin.transactions.create', compact('rooms', 'tools', 'faculties', 'subjects'));
+    }
+
+    /**
+     * Store a manually created transaction.
+     * POST /admin/transactions
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $type = $request->input('type', 'room');
+
+        // Parse Time In and Time Out (supports forgotten sessions & manual logbook entries)
+        $timeIn = $request->filled('time_in')
+            ? Carbon::parse($request->input('time_in'))
+            : now();
+
+        $timeOut = $request->filled('time_out')
+            ? Carbon::parse($request->input('time_out'))
+            : null;
+
+        if ($timeOut && $timeOut->lt($timeIn)) {
+            return back()->withErrors([
+                'time_out' => 'Time Out / Return time cannot be earlier than Time In / Borrowed time.'
+            ])->withInput();
+        }
+
+        $duration = (int) ($request->input('duration_hours', 3));
+        $status = $timeOut ? 'returned' : 'open';
+        $expectedReturnAt = $timeOut ?: $timeIn->copy()->addHours($duration);
+
+        if ($type === 'room') {
+            $validated = $request->validate([
+                'borrower_name'  => ['required', 'string', 'max:255'],
+                'room_id'        => ['required', 'exists:rooms,id'],
+                'subject'        => ['required', 'string', 'max:255'],
+                'duration_hours' => ['nullable', 'integer', 'min:1', 'max:24'],
+                'borrower_email' => ['nullable', 'email', 'max:255'],
+                'time_in'        => ['nullable', 'date'],
+                'time_out'       => ['nullable', 'date'],
+                'notes'          => ['nullable', 'string', 'max:1000'],
+            ], [
+                'borrower_name.required' => 'Please enter the name of the faculty or borrower.',
+                'room_id.required'       => 'Please select the room to use.',
+                'subject.required'       => 'Please enter the course subject or purpose.',
+            ]);
+
+            $transaction = Transaction::create([
+                'user_id'            => auth()->id(),
+                'room_id'            => $validated['room_id'],
+                'tool_id'            => null,
+                'quantity'           => 1,
+                'borrower_name'      => $validated['borrower_name'],
+                'borrower_email'     => $validated['borrower_email'] ?? null,
+                'subject'            => $validated['subject'],
+                'checked_out_at'     => $timeIn,
+                'returned_at'        => $timeOut,
+                'expected_return_at' => $expectedReturnAt,
+                'status'             => $status,
+                'notes'              => $validated['notes'] ?? null,
+                'source'             => 'dashboard',
+            ]);
+        } else {
+            // ── MULTI-TOOL & SINGLE-TOOL BORROWING ────────────────────────────
+            $rawTools = $request->input('tools');
+            $itemsData = [];
+
+            if (is_array($rawTools) && count($rawTools) > 0) {
+                foreach ($rawTools as $t) {
+                    if (empty($t['tool_id'])) continue;
+                    $itemsData[] = [
+                        'tool_id'  => (int) $t['tool_id'],
+                        'quantity' => max(1, (int) ($t['quantity'] ?? 1)),
+                    ];
+                }
+            } elseif ($request->filled('tool_id')) {
+                $itemsData[] = [
+                    'tool_id'  => (int) $request->input('tool_id'),
+                    'quantity' => max(1, (int) $request->input('quantity', 1)),
+                ];
+            }
+
+            if (empty($itemsData)) {
+                return back()->withErrors(['tool_id' => 'Please select at least one tool to borrow.'])->withInput();
+            }
+
+            // Consolidate duplicate tools if selected multiple times
+            $consolidated = [];
+            foreach ($itemsData as $item) {
+                $tid = $item['tool_id'];
+                if (isset($consolidated[$tid])) {
+                    $consolidated[$tid]['quantity'] += $item['quantity'];
+                } else {
+                    $consolidated[$tid] = $item;
+                }
+            }
+            $itemsData = array_values($consolidated);
+
+            $totalQuantity = 0;
+            $primaryToolId = $itemsData[0]['tool_id'];
+
+            foreach ($itemsData as $item) {
+                $tool = Tool::findOrFail($item['tool_id']);
+                if (! $tool->is_active) {
+                    return back()->withErrors(['tool_id' => "Tool '{$tool->name}' is currently marked as inactive."])->withInput();
+                }
+
+                // Check stock for active transactions
+                if (! $timeOut && $item['quantity'] > $tool->available_quantity) {
+                    return back()->withErrors([
+                        'tool_id' => "Only {$tool->available_quantity} unit(s) available for '{$tool->name}' (requested: {$item['quantity']})."
+                    ])->withInput();
+                }
+
+                $totalQuantity += $item['quantity'];
+            }
+
+            $validated = $request->validate([
+                'borrower_name'  => ['required', 'string', 'max:255'],
+                'subject'        => ['nullable', 'string', 'max:255'],
+                'duration_hours' => ['nullable', 'integer', 'min:1', 'max:24'],
+                'borrower_email' => ['nullable', 'email', 'max:255'],
+                'time_in'        => ['nullable', 'date'],
+                'time_out'       => ['nullable', 'date'],
+                'notes'          => ['nullable', 'string', 'max:1000'],
+            ], [
+                'borrower_name.required' => 'Please enter the name of the borrower.',
+            ]);
+
+            $transaction = Transaction::create([
+                'user_id'            => auth()->id(),
+                'room_id'            => null,
+                'tool_id'            => $primaryToolId,
+                'quantity'           => $totalQuantity,
+                'borrower_name'      => $validated['borrower_name'],
+                'borrower_email'     => $validated['borrower_email'] ?? null,
+                'subject'            => $request->input('tool_subject') ?: ($validated['subject'] ?? null),
+                'checked_out_at'     => $timeIn,
+                'returned_at'        => $timeOut,
+                'expected_return_at' => $expectedReturnAt,
+                'status'             => $status,
+                'notes'              => $validated['notes'] ?? null,
+                'source'             => 'dashboard',
+            ]);
+
+            // Record each borrowed tool item
+            foreach ($itemsData as $item) {
+                TransactionItem::create([
+                    'transaction_id'    => $transaction->id,
+                    'tool_id'           => $item['tool_id'],
+                    'quantity_borrowed' => $item['quantity'],
+                    'quantity_returned' => $timeOut ? $item['quantity'] : 0,
+                    'status'            => $timeOut ? 'returned' : 'borrowed',
+                    'returned_at'       => $timeOut,
+                ]);
+            }
+        }
+
+        $transaction->load(['room', 'tool', 'items.tool']);
+
+        if ($status === 'open') {
+            $this->telegram->sendCheckoutNotification($transaction);
+            $msg = "Transaction #{$transaction->id} created successfully (Active / In-Use).";
+        } else {
+            $msg = "Transaction #{$transaction->id} recorded into logbook as Completed (Returned at {$timeOut->format('M d, Y h:i A')}).";
+        }
+
+        return redirect()->route('admin.transactions.index')
+            ->with('success', $msg);
+    }
+
+    /**
+     * Mark an open, overdue, or partially returned transaction as returned.
+     * Supports returning partial quantities or all remaining items.
+     * POST /admin/transactions/{transaction}/return
+     */
+    public function markReturned(Request $request, Transaction $transaction): RedirectResponse
+    {
+        if ($transaction->status === 'returned') {
+            return back()->with('info', 'This transaction is already marked as fully returned.');
+        }
+
+        // Room transaction: Instant 1-click return
+        if ($transaction->room_id && ! $transaction->items()->exists() && ! $transaction->tool_id) {
+            $transaction->update([
+                'status'      => 'returned',
+                'returned_at' => now(),
+            ]);
+
+            $transaction->load(['room', 'tool']);
+            $this->telegram->sendReturnNotification($transaction);
+
+            return back()->with('success', "Room utilization #{$transaction->id} ({$transaction->room?->name}) has been marked as returned.");
+        }
+
+        // Tool transaction: multi-tool and partial return support
+        $transaction->load(['items.tool', 'tool']);
+        $returnItemsInput = $request->input('return_items'); // [ item_id => quantity_returning_now ]
+        $returnNotes = $request->input('return_notes');
+
+        if ($transaction->items->isNotEmpty()) {
+            $totalNewlyReturned = 0;
+
+            foreach ($transaction->items as $item) {
+                if ($item->status === 'returned') {
+                    continue;
+                }
+
+                if (is_array($returnItemsInput) && array_key_exists($item->id, $returnItemsInput)) {
+                    $qtyToReturnNow = max(0, (int) $returnItemsInput[$item->id]);
+                } else {
+                    // Default quick return: return all remaining for this item
+                    $qtyToReturnNow = $item->remaining_quantity;
+                }
+
+                if ($qtyToReturnNow > 0) {
+                    $newQtyReturned = min($item->quantity_borrowed, $item->quantity_returned + $qtyToReturnNow);
+                    $itemStatus = ($newQtyReturned >= $item->quantity_borrowed) ? 'returned' : 'partially_returned';
+
+                    $item->update([
+                        'quantity_returned' => $newQtyReturned,
+                        'status'            => $itemStatus,
+                        'returned_at'       => ($itemStatus === 'returned') ? now() : $item->returned_at,
+                        'notes'             => $returnNotes ?: $item->notes,
+                    ]);
+
+                    $totalNewlyReturned += $qtyToReturnNow;
+                }
+            }
+
+            $transaction->refresh();
+            $transaction->load('items.tool');
+
+            $allReturned = $transaction->items->every(fn($i) => $i->status === 'returned');
+            $anyReturned = $transaction->items->some(fn($i) => $i->quantity_returned > 0);
+
+            if ($allReturned) {
+                $transaction->update([
+                    'status'      => 'returned',
+                    'returned_at' => now(),
+                ]);
+                $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — All tools have been fully returned.";
+            } elseif ($anyReturned) {
+                $transaction->update([
+                    'status' => 'partially_returned',
+                ]);
+                $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Partial return recorded ({$totalNewlyReturned} unit(s) returned). Remaining tools remain borrowed.";
+            } else {
+                return back()->with('warning', 'No tool quantities were specified to return.');
+            }
+        } else {
+            // Legacy single-tool transaction without items table
+            $transaction->update([
+                'status'      => 'returned',
+                'returned_at' => now(),
+            ]);
+            $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) has been marked as returned.";
+        }
+
+        $transaction->load(['room', 'tool', 'items.tool']);
+        $this->telegram->sendReturnNotification($transaction);
+
+        return back()->with('success', $msg);
+    }
+
+    /**
+     * Show a single transaction's full details.
+     * GET /admin/transactions/{transaction}
+     */
+    public function show(Transaction $transaction): View
+    {
+        $transaction->load(['room', 'tool', 'items.tool', 'user', 'notificationLogs']);
+        return view('admin.transactions.show', compact('transaction'));
+    }
+
+    /**
+     * Export filtered transactions to CSV.
+     * GET /admin/transactions/export
+     */
+    public function export(Request $request): Response
+    {
+        $query = Transaction::with(['room', 'tool'])
+            ->latest('checked_out_at');
+
+        if ($request->filled('status'))    $query->where('status', $request->status);
+        if ($request->filled('room_id'))   $query->where('room_id', $request->room_id);
+        if ($request->filled('tool_id'))   $query->where('tool_id', $request->tool_id);
+        if ($request->filled('borrower'))  $query->where('borrower_name', 'like', '%' . $request->borrower . '%');
+        if ($request->filled('date_from')) $query->whereDate('checked_out_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))   $query->whereDate('checked_out_at', '<=', $request->date_to);
+
+        $transactions = $query->get();
+
+        $filename = 'lab-transactions-' . now()->format('Y-m-d') . '.csv';
+
+        $csvLines = [];
+        $csvLines[] = implode(',', [
+            'Transaction ID',
+            'Borrower Name',
+            'Borrower Email',
+            'Room',
+            'Tool',
+            'Quantity',
+            'Subject',
+            'Checked Out At',
+            'Expected Return',
+            'Returned At',
+            'Status',
+            'Source',
+            'Notes',
+        ]);
+
+        foreach ($transactions as $tx) {
+            $csvLines[] = implode(',', array_map(
+                fn ($v) => '"' . str_replace('"', '""', (string) $v) . '"',
+                [
+                    $tx->id,
+                    $tx->borrower_name,
+                    $tx->borrower_email ?? '',
+                    $tx->room?->name ?? '',
+                    $tx->tool?->name ?? '',
+                    $tx->quantity,
+                    $tx->subject ?? '',
+                    $tx->checked_out_at?->format('Y-m-d H:i:s') ?? '',
+                    $tx->expected_return_at?->format('Y-m-d H:i:s') ?? '',
+                    $tx->returned_at?->format('Y-m-d H:i:s') ?? '',
+                    $tx->status,
+                    $tx->source,
+                    $tx->notes ?? '',
+                ]
+            ));
+        }
+
+        return response(implode("\n", $csvLines), 200, [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+}

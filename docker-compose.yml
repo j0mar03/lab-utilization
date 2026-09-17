@@ -1,0 +1,74 @@
+services:
+
+  # ── PHP-FPM app (Laravel) ───────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: lab-utilization-app
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php/entrypoint.sh:/usr/local/bin/entrypoint.sh
+      - composer-cache:/tmp/composer-cache
+    environment:
+      - TZ=Asia/Manila
+      - HOME=/tmp
+    depends_on:
+      db:
+        condition: service_healthy   # wait until MySQL is actually ready
+
+  # ── Nginx web server ────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    container_name: lab-utilization-web
+    ports:
+      - "8088:80"       # visit http://localhost:8088
+    depends_on:
+      - app
+    volumes:
+      - ./:/var/www/html
+
+  # ── MySQL 8.0 ───────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: lab-utilization-db
+    ports:
+      - "${DB_BIND_HOST:-127.0.0.1}:${DB_PORT_FORWARD:-3308}:3306"
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE:-lab_utilization}
+      - MYSQL_USER=${DB_USERNAME:-lab_user}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-lab_password}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root_password}
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_password}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Vite dev server (for hot-reload during development) ─────────────────
+  # Only needed during active frontend development.
+  # Stop it with: docker compose stop vite
+  vite:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: lab-utilization-vite
+    working_dir: /var/www/html
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "5174:5173"     # Vite HMR on port 5174
+    volumes:
+      - ./:/var/www/html
+    profiles:
+      - dev             # only starts with: docker compose --profile dev up
+
+volumes:
+  db-data:
+  composer-cache:

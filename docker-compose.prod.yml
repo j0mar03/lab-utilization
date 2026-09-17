@@ -1,0 +1,41 @@
+services:
+  # ── PHP-FPM app (Laravel) ───────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: lab-utilization-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php/entrypoint.sh:/usr/local/bin/entrypoint.sh
+      - composer-cache:/tmp/composer-cache
+    environment:
+      - TZ=Asia/Manila
+      - HOME=/tmp
+    networks:
+      - facultyportfolio_default
+
+  # ── Nginx web server ────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    container_name: lab-utilization-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8088:80"
+    depends_on:
+      - app
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - facultyportfolio_default
+
+volumes:
+  composer-cache:
+
+networks:
+  facultyportfolio_default:
+    external: true
