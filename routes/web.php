@@ -84,8 +84,9 @@ Route::middleware(['auth'])->group(function () {
         ->name('admin.')
         ->group(function () {
 
-            // Phase 3: Reports & Charts
+            // Phase 3: Reports, Charts & Audit Matrices
             Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+            Route::get('/reports/audit', [ReportController::class, 'audit'])->name('reports.audit');
 
             // Phase 2: Printable QR code sheets
             Route::prefix('qr')->name('qr.')->group(function () {
