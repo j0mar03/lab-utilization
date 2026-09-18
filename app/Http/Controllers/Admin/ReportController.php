@@ -14,7 +14,7 @@ use Illuminate\View\View;
  *
  * Aggregates laboratory and tool utilization data for analytics & research.
  * Separates Room Utilization from Tool Utilization and breaks down metrics by Department
- * (DOMIT, DCEET, DEMET, etc.).
+ * (DOMIT, DECET, DEMET, etc.).
  *
  * Accessible to: lab_head only.
  */
@@ -33,7 +33,7 @@ class ReportController extends Controller
         foreach ($allDeptNames as $dept) {
             $short = match($dept) {
                 'Department of Office Management and Information Technology' => 'DOMIT',
-                'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+                'Department of Computer and Electronics Engineering Technology' => 'DECET',
                 'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
                 'Department of Civil and Railway Engineering Technology' => 'DCRET',
                 'College of Science' => 'CS',
@@ -218,6 +218,34 @@ class ReportController extends Controller
         $toolCatLabels = $toolCategories->keys()->values();
         $toolCatData   = $toolCategories->values()->values();
 
+        // ── 6. Software & Application Utilization (Computer Labs) ────────────
+        $softwareTransactions = Transaction::rooms()->whereNotNull('software_utilized')->get();
+        $totalSoftwareRoomSessions = $softwareTransactions->count();
+
+        $softwareCounts = [];
+        $softwareDeptCounts = []; // [ software => [ dept => count ] ]
+
+        foreach ($softwareTransactions as $stx) {
+            $deptShort = $stx->departmentShort() ?: 'General';
+            $suites = (array) $stx->software_utilized;
+            foreach ($suites as $suite) {
+                $suite = trim($suite);
+                if ($suite === '') continue;
+                $softwareCounts[$suite] = ($softwareCounts[$suite] ?? 0) + 1;
+                $softwareDeptCounts[$suite][$deptShort] = ($softwareDeptCounts[$suite][$deptShort] ?? 0) + 1;
+            }
+        }
+
+        arsort($softwareCounts);
+        $softwareChartLabels = array_keys($softwareCounts);
+        $softwareChartData   = array_values($softwareCounts);
+
+        $softwareAdoptionRate = $totalRoomTransactions > 0
+            ? round(($totalSoftwareRoomSessions / $totalRoomTransactions) * 100, 1)
+            : 0;
+
+        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
+
         // Overall totals for top stat row
         $totalTransactions = Transaction::count();
         $totalReturned     = Transaction::returned()->count();
@@ -250,6 +278,13 @@ class ReportController extends Controller
             'topToolData',
             'toolCatLabels',
             'toolCatData',
+            'totalSoftwareRoomSessions',
+            'softwareCounts',
+            'softwareDeptCounts',
+            'softwareChartLabels',
+            'softwareChartData',
+            'softwareAdoptionRate',
+            'softwareCatalog',
             'totalTransactions',
             'totalReturned'
         ));

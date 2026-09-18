@@ -40,7 +40,7 @@ class Tool extends Model
     {
         return match($this->department) {
             'Department of Office Management and Information Technology' => 'DOMIT',
-            'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+            'Department of Computer and Electronics Engineering Technology' => 'DECET',
             'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
             default => $this->department ? substr($this->department, 0, 15) : 'General',
         };

@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
  * RoomSeeder — Seeds all PUP-ITECH lab and lecture rooms organized by Department.
  *
  * Department Mapping:
- * - Department Of Computer And Electronics Engineering Technology (DCEET):
+ * - Department Of Computer And Electronics Engineering Technology (DECET):
  *     Lecture rooms: 200, 201 | Lab rooms: 204, 205
  * - Department Of Office Management and Information Technology (DOMIT):
  *     Lecture rooms: 303, 304, 305 | Lab rooms: 104, 105, 203
@@ -22,7 +22,7 @@ class RoomSeeder extends Seeder
 {
     public function run(): void
     {
-        $dceet = 'Department of Computer and Electronics Engineering Technology';
+        $decet = 'Department of Computer and Electronics Engineering Technology';
         $domit = 'Department of Office Management and Information Technology';
         $demet = 'Department of Electrical and Mechanical Engineering Technology';
 
@@ -71,31 +71,31 @@ class RoomSeeder extends Seeder
                 'has_wifi'   => false,
             ],
 
-            // ── DCEET (Computer & Electronics Engineering Tech) ────────────
+            // ── DECET (Computer & Electronics Engineering Tech) ────────────
             [
                 'name'       => 'LAB 204',
-                'department' => $dceet,
+                'department' => $decet,
                 'location'   => '2nd Floor',
                 'capacity'   => null,
                 'has_wifi'   => true,
             ],
             [
                 'name'       => 'LAB 205',
-                'department' => $dceet,
+                'department' => $decet,
                 'location'   => '2nd Floor',
                 'capacity'   => null,
                 'has_wifi'   => true,
             ],
             [
                 'name'       => 'LEC 200',
-                'department' => $dceet,
+                'department' => $decet,
                 'location'   => '2nd Floor',
                 'capacity'   => null,
                 'has_wifi'   => false,
             ],
             [
                 'name'       => 'LEC 201',
-                'department' => $dceet,
+                'department' => $decet,
                 'location'   => '2nd Floor',
                 'capacity'   => null,
                 'has_wifi'   => false,
@@ -169,7 +169,7 @@ class RoomSeeder extends Seeder
             ],
             [
                 'name'       => 'Laboratory Office 203',
-                'department' => $dceet,
+                'department' => $decet,
                 'location'   => '2nd Floor',
                 'capacity'   => null,
                 'has_wifi'   => true,

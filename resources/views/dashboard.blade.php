@@ -104,7 +104,7 @@
                                 @php
                                     $short = match($dept) {
                                         'Department of Office Management and Information Technology' => 'DOMIT',
-                                        'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+                                        'Department of Computer and Electronics Engineering Technology' => 'DECET',
                                         'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
                                         'Department of Civil and Railway Engineering Technology' => 'DCRET',
                                         'College of Science' => 'CS',
@@ -240,6 +240,15 @@
                                                         — <span class="text-gray-500 dark:text-gray-400 text-xs">{{ $tx->subject }}</span>
                                                     @endif
                                                 </div>
+                                                @if ($tx->hasSoftwareUtilized())
+                                                    <div class="flex flex-wrap gap-1 mt-1.5">
+                                                        @foreach ((array) $tx->software_utilized as $sw)
+                                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                                                💻 {{ $sw }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
                                             </div>
                                             <div class="text-right shrink-0">
                                                 <div class="text-xs font-semibold text-gray-600 dark:text-gray-300">
@@ -428,8 +437,17 @@
                                                     {{ $tx->departmentShort() }}
                                                 </span>
                                             </td>
-                                            <td class="px-5 py-3 text-xs text-gray-600 dark:text-gray-400 max-w-xs truncate">
-                                                {{ $tx->subject ?? '—' }}
+                                            <td class="px-5 py-3 text-xs text-gray-600 dark:text-gray-400 max-w-xs">
+                                                <div class="truncate font-medium text-gray-800 dark:text-gray-200">{{ $tx->subject ?? '—' }}</div>
+                                                @if ($tx->hasSoftwareUtilized())
+                                                    <div class="flex flex-wrap gap-1 mt-1">
+                                                        @foreach ((array) $tx->software_utilized as $sw)
+                                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                                                💻 {{ $sw }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td class="px-5 py-3 text-xs text-gray-500 dark:text-gray-400">
                                                 {{ $tx->checked_out_at->format('M d, g:i A') }}

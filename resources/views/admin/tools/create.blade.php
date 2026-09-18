@@ -90,7 +90,7 @@
                             @endforeach
                         </select>
                         <p class="mt-1 text-xs text-gray-500">
-                            Assign to DOMIT, DCEET, or DEMET to organize inventory and filter checkouts by department.
+                            Assign to DOMIT, DECET, or DEMET to organize inventory and filter checkouts by department.
                         </p>
                         @error('department')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>

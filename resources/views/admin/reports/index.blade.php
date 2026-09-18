@@ -23,7 +23,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
 
             {{-- ── High-Level Separated Summary Stats ─────────────────────── --}}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {{-- Room Utilization Card --}}
                 <div class="bg-white dark:bg-gray-800 rounded-xl border border-blue-100 dark:border-blue-900/40 shadow-sm p-5 relative overflow-hidden">
                     <div class="absolute top-0 left-0 h-1 w-full bg-blue-600"></div>
@@ -40,8 +40,8 @@
                         <span class="text-xs font-normal text-gray-400">sessions</span>
                     </div>
                     <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
-                        <span><strong>{{ $totalRoomHours }}</strong> total hours logged</span>
-                        <span>Avg: <strong>{{ $avgRoomDurationHours }}h</strong> / session</span>
+                        <span><strong>{{ $totalRoomHours }}</strong> total hours</span>
+                        <span>Avg: <strong>{{ $avgRoomDurationHours }}h</strong></span>
                     </div>
                 </div>
 
@@ -53,7 +53,7 @@
                             🔧 Equipment Circulation
                         </span>
                         <span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                            Tools & Devices
+                            Tools
                         </span>
                     </div>
                     <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-2">
@@ -61,28 +61,49 @@
                         <span class="text-xs font-normal text-gray-400">checkouts</span>
                     </div>
                     <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
-                        <span><strong>{{ $totalToolUnitsBorrowed }}</strong> physical units borrowed</span>
-                        <span><strong>{{ $returnedToolCount }}</strong> completed</span>
+                        <span><strong>{{ $totalToolUnitsBorrowed }}</strong> units out</span>
+                        <span><strong>{{ $returnedToolCount }}</strong> returned</span>
                     </div>
                 </div>
 
-                {{-- System Overall Card --}}
+                {{-- Software Utilization Card --}}
                 <div class="bg-white dark:bg-gray-800 rounded-xl border border-purple-100 dark:border-purple-900/40 shadow-sm p-5 relative overflow-hidden">
                     <div class="absolute top-0 left-0 h-1 w-full bg-purple-600"></div>
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                            📊 Total System Activity
+                            💻 Software Utilized
                         </span>
                         <span class="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+                            Comp Labs
+                        </span>
+                    </div>
+                    <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-2">
+                        {{ number_format($totalSoftwareRoomSessions) }}
+                        <span class="text-xs font-normal text-gray-400">sessions</span>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
+                        <span><strong>{{ $softwareAdoptionRate }}%</strong> lab adoption</span>
+                        <span><strong>{{ count($softwareCounts) }}</strong> suites logged</span>
+                    </div>
+                </div>
+
+                {{-- System Overall Card --}}
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-indigo-100 dark:border-indigo-900/40 shadow-sm p-5 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 h-1 w-full bg-indigo-600"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                            📊 Total Activity
+                        </span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
                             Combined
                         </span>
                     </div>
                     <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-2">
                         {{ number_format($totalTransactions) }}
-                        <span class="text-xs font-normal text-gray-400">transactions</span>
+                        <span class="text-xs font-normal text-gray-400">total</span>
                     </div>
                     <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
-                        <span><strong>{{ $totalReturned }}</strong> total returns ({{ $totalTransactions > 0 ? round(($totalReturned / $totalTransactions) * 100, 1) : 0 }}%)</span>
+                        <span><strong>{{ $totalReturned }}</strong> returns ({{ $totalTransactions > 0 ? round(($totalReturned / $totalTransactions) * 100, 1) : 0 }}%)</span>
                         <span>Active: <strong>{{ $totalTransactions - $totalReturned }}</strong></span>
                     </div>
                 </div>
@@ -342,6 +363,122 @@
                 </div>
             </div>
 
+            {{-- ═══════════════════════════════════════════════════════════════ --}}
+            {{-- SECTION 3: COMPUTER LAB SOFTWARE UTILIZATION                    --}}
+            {{-- ═══════════════════════════════════════════════════════════════ --}}
+            <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700 gap-2">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                            <span>💻</span>
+                            <span>Computer Laboratory Software & Applications Utilization</span>
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Tracking software suites deployed and utilized during computer lab sessions for curriculum delivery & OPCR compliance
+                        </p>
+                    </div>
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 self-start sm:self-auto">
+                        {{ $totalSoftwareRoomSessions }} Software Sessions ({{ $softwareAdoptionRate }}% Adoption)
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {{-- 1. Software Utilization Chart --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                📊 Sessions per Software Suite
+                            </h4>
+                            <span class="text-xs text-gray-400">Lab Checkouts</span>
+                        </div>
+                        @if (count($softwareChartData) === 0 || array_sum($softwareChartData) === 0)
+                            <div class="my-auto py-12 text-center text-gray-400 dark:text-gray-500">
+                                <p class="text-3xl mb-2">💻</p>
+                                <p class="text-sm font-medium">No software utilization recorded yet.</p>
+                                <p class="text-xs mt-1">Select software suites when checking out computer laboratory rooms to see usage analytics.</p>
+                            </div>
+                        @else
+                            <canvas id="softwareChart" height="220"></canvas>
+                        @endif
+                    </div>
+
+                    {{-- 2. Software Catalog & Department Breakdown --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                📑 Software Suites Breakdown
+                            </h4>
+                            <span class="text-xs text-gray-400">{{ count($softwareCatalog) }} Catalog Suites</span>
+                        </div>
+
+                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto pr-1">
+                            @foreach ($softwareCatalog as $swKey => $sw)
+                                @php
+                                    $sessionCount = $softwareCounts[$sw['name']] ?? 0;
+                                    $deptBreakdown = $softwareDeptCounts[$sw['name']] ?? [];
+                                @endphp
+                                <div class="py-3 first:pt-0 last:pb-0">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div>
+                                            <span class="font-semibold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                                                <span>{{ $sw['icon'] }}</span>
+                                                <span>{{ $sw['name'] }}</span>
+                                            </span>
+                                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                {{ $sw['description'] }}
+                                            </p>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold {{ $sessionCount > 0 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' }}">
+                                                {{ $sessionCount }} session{{ $sessionCount === 1 ? '' : 's' }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-2 flex items-center gap-1.5 flex-wrap">
+                                        <span class="text-[10px] text-gray-400">Target Depts:</span>
+                                        @foreach ($sw['departments'] as $tDept)
+                                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-mono">
+                                                {{ $tDept }}
+                                            </span>
+                                        @endforeach
+
+                                        @if (!empty($deptBreakdown))
+                                            <span class="text-[10px] text-gray-400 ml-1">| Utilized by:</span>
+                                            @foreach ($deptBreakdown as $dShort => $dCount)
+                                                <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800">
+                                                    {{ $dShort }}: {{ $dCount }}
+                                                </span>
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+
+                            {{-- Any custom software logged --}}
+                            @foreach ($softwareCounts as $swName => $swCount)
+                                @if (!isset($softwareCatalog[$swName]))
+                                    <div class="py-3">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <div>
+                                                <span class="font-semibold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                                                    <span>⚙️</span>
+                                                    <span>{{ $swName }}</span>
+                                                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 font-normal">Custom</span>
+                                                </span>
+                                            </div>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                                                {{ $swCount }} session{{ $swCount === 1 ? '' : 's' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {{-- ── Data Privacy & Research Note ────────────────────────────── --}}
             <div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-xs text-gray-500 dark:text-gray-400">
                 <strong>📊 Laboratory Analytics & Research Compliance:</strong>
@@ -580,6 +717,32 @@
                         position: 'bottom',
                         labels: { color: textColor, boxWidth: 12, font: { size: 11 } }
                     }
+                }
+            }
+        });
+        @endif
+
+        // ── 10. Software Utilization Bar Chart ──────────────────────────────
+        @if (count($softwareChartData) > 0)
+        new Chart(document.getElementById('softwareChart'), {
+            type: 'bar',
+            data: {
+                labels: @json($softwareChartLabels),
+                datasets: [{
+                    label: 'Sessions Utilized',
+                    data: @json($softwareChartData),
+                    backgroundColor: [
+                        '#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#14B8A6', '#F43F5E'
+                    ],
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor }, grid: { color: gridColor } },
+                    x: { ticks: { color: textColor }, grid: { display: false } }
                 }
             }
         });

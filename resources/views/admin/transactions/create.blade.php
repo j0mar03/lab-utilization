@@ -325,6 +325,58 @@
                             </p>
                             <x-input-error class="mt-1" :messages="$errors->get('subject')" />
                         </div>
+
+                        {{-- ── Software Utilized in Computer Laboratories ────── --}}
+                        <div class="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base">💻</span>
+                                    <div>
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-purple-900 dark:text-purple-300">
+                                            Software & Applications Utilized (Optional)
+                                        </h4>
+                                        <p class="text-xs text-purple-700/80 dark:text-purple-400">
+                                            For computer lab sessions, select the software tools utilized for research & OPCR reporting.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                @foreach ($softwareCatalog as $swKey => $sw)
+                                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-purple-200/80 dark:border-purple-800/60 bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/30 cursor-pointer transition">
+                                        <input type="checkbox"
+                                               name="software_utilized[]"
+                                               value="{{ $sw['name'] }}"
+                                               :disabled="type !== 'room'"
+                                               {{ is_array(old('software_utilized')) && in_array($sw['name'], old('software_utilized')) ? 'checked' : '' }}
+                                               class="mt-1 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                        <div class="text-xs">
+                                            <span class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                                                <span>{{ $sw['icon'] }}</span>
+                                                <span>{{ $sw['name'] }}</span>
+                                            </span>
+                                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-tight">
+                                                {{ $sw['description'] }}
+                                            </p>
+                                        </div>
+                                    </label>
+                                @endforeach
+                            </div>
+
+                            <div class="pt-1">
+                                <label for="software_custom" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Other / Specialized Software (Optional):
+                                </label>
+                                <input type="text"
+                                       id="software_custom"
+                                       name="software_custom"
+                                       :disabled="type !== 'room'"
+                                       value="{{ old('software_custom') }}"
+                                       placeholder="e.g., Blender, Proteus 8, Wireshark, Quartus Prime (separate with comma)"
+                                       class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg shadow-sm text-xs">
+                            </div>
+                        </div>
                     </div>
 
                     {{-- ═══════════════════════════════════════════════════════ --}}

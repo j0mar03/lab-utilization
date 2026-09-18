@@ -112,8 +112,9 @@ class TransactionController extends Controller
         $tools     = Tool::where('is_active', true)->orderBy('department')->orderBy('category')->orderBy('name')->get();
         $faculties = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
         $subjects  = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
+        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
 
-        return view('admin.transactions.create', compact('rooms', 'tools', 'faculties', 'subjects'));
+        return view('admin.transactions.create', compact('rooms', 'tools', 'faculties', 'subjects', 'softwareCatalog'));
     }
 
     /**
@@ -145,19 +146,33 @@ class TransactionController extends Controller
 
         if ($type === 'room') {
             $validated = $request->validate([
-                'borrower_name'  => ['required', 'string', 'max:255'],
-                'room_id'        => ['required', 'exists:rooms,id'],
-                'subject'        => ['required', 'string', 'max:255'],
-                'duration_hours' => ['nullable', 'integer', 'min:1', 'max:24'],
-                'borrower_email' => ['nullable', 'email', 'max:255'],
-                'time_in'        => ['nullable', 'date'],
-                'time_out'       => ['nullable', 'date'],
-                'notes'          => ['nullable', 'string', 'max:1000'],
+                'borrower_name'       => ['required', 'string', 'max:255'],
+                'room_id'             => ['required', 'exists:rooms,id'],
+                'subject'             => ['required', 'string', 'max:255'],
+                'duration_hours'      => ['nullable', 'integer', 'min:1', 'max:24'],
+                'borrower_email'      => ['nullable', 'email', 'max:255'],
+                'time_in'             => ['nullable', 'date'],
+                'time_out'            => ['nullable', 'date'],
+                'notes'               => ['nullable', 'string', 'max:1000'],
+                'software_utilized'   => ['nullable', 'array'],
+                'software_utilized.*' => ['string', 'max:100'],
+                'software_custom'     => ['nullable', 'string', 'max:255'],
             ], [
                 'borrower_name.required' => 'Please enter the name of the faculty or borrower.',
                 'room_id.required'       => 'Please select the room to use.',
                 'subject.required'       => 'Please enter the course subject or purpose.',
             ]);
+
+            $softwareUtilized = (array) $request->input('software_utilized', []);
+            if ($request->filled('software_custom')) {
+                $customItems = array_filter(array_map('trim', explode(',', $request->input('software_custom'))));
+                foreach ($customItems as $cItem) {
+                    if (!in_array($cItem, $softwareUtilized)) {
+                        $softwareUtilized[] = $cItem;
+                    }
+                }
+            }
+            $softwareUtilized = !empty($softwareUtilized) ? array_values(array_unique($softwareUtilized)) : null;
 
             $transaction = Transaction::create([
                 'user_id'            => auth()->id(),
@@ -168,6 +183,7 @@ class TransactionController extends Controller
                 'borrower_email'     => $validated['borrower_email'] ?? null,
                 'department'         => $request->input('department') ?: null,
                 'subject'            => $validated['subject'],
+                'software_utilized'  => $softwareUtilized,
                 'checked_out_at'     => $timeIn,
                 'returned_at'        => $timeOut,
                 'expected_return_at' => $expectedReturnAt,
@@ -414,10 +430,12 @@ class TransactionController extends Controller
             'Transaction ID',
             'Borrower Name',
             'Borrower Email',
+            'Department',
             'Room',
             'Tool',
             'Quantity',
             'Subject',
+            'Software Utilized',
             'Checked Out At',
             'Expected Return',
             'Returned At',
@@ -433,10 +451,12 @@ class TransactionController extends Controller
                     $tx->id,
                     $tx->borrower_name,
                     $tx->borrower_email ?? '',
+                    $tx->departmentShort() ?: ($tx->department ?? ''),
                     $tx->room?->name ?? '',
                     $tx->tool?->name ?? '',
                     $tx->quantity,
                     $tx->subject ?? '',
+                    $tx->softwareSummary(),
                     $tx->checked_out_at?->format('Y-m-d H:i:s') ?? '',
                     $tx->expected_return_at?->format('Y-m-d H:i:s') ?? '',
                     $tx->returned_at?->format('Y-m-d H:i:s') ?? '',

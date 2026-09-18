@@ -157,8 +157,17 @@
                                     <td class="px-4 py-3 text-sm text-gray-700">
                                         {{ $tx->subjectDescription() }}
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-500 max-w-[160px] truncate">
-                                        {{ $tx->subject ?? '—' }}
+                                    <td class="px-4 py-3 text-sm text-gray-500 max-w-[200px]">
+                                        <div class="truncate">{{ $tx->subject ?? '—' }}</div>
+                                        @if ($tx->hasSoftwareUtilized())
+                                            <div class="flex flex-wrap gap-1 mt-0.5">
+                                                @foreach ((array) $tx->software_utilized as $sw)
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                                        💻 {{ $sw }}
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                                         {{ $tx->checked_out_at->format('M d, g:i A') }}

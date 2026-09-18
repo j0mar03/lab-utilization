@@ -57,6 +57,9 @@ class TelegramService
 
         if ($isRoom) {
             $message .= "🚪 *Room:* " . ($transaction->room?->name ?? 'Room') . "\n";
+            if ($transaction->hasSoftwareUtilized()) {
+                $message .= "💻 *Software Utilized:* " . $transaction->softwareSummary() . "\n";
+            }
         } else {
             if ($transaction->items && $transaction->items->isNotEmpty()) {
                 $itemList = $transaction->items->map(function ($item) {
@@ -108,6 +111,9 @@ class TelegramService
 
         if ($isRoom) {
             $message .= "🚪 *Room:* " . ($transaction->room?->name ?? 'Room') . "\n";
+            if ($transaction->hasSoftwareUtilized()) {
+                $message .= "💻 *Software:* " . $transaction->softwareSummary() . "\n";
+            }
         } else {
             $message .= "📦 *Item:* " . $transaction->subjectDescription() . "\n";
         }
@@ -191,6 +197,7 @@ class TelegramService
 
         try {
             $response = Http::timeout(10)
+                ->retry(3, 1000)
                 ->post("{$this->apiUrl}{$this->botToken}/sendMessage", [
                     'chat_id'    => $targetChatId,
                     'text'       => $testMsg,
@@ -250,6 +257,7 @@ class TelegramService
 
         try {
             $response = Http::timeout(10)
+                ->retry(3, 1000)
                 ->post("{$this->apiUrl}{$this->botToken}/sendMessage", $payload);
 
             $success = $response->successful();

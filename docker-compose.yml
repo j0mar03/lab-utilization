@@ -15,6 +15,9 @@ services:
     environment:
       - TZ=Asia/Manila
       - HOME=/tmp
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       db:
         condition: service_healthy   # wait until MySQL is actually ready

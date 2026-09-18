@@ -28,11 +28,11 @@ return new class extends Migration
             ]);
         }
 
-        // ── 1. Department of Computer and Electronics Engineering Technology (DCEET) ──
+        // ── 1. Department of Computer and Electronics Engineering Technology (DECET) ──
         // Lecture rooms: 200, 201 | Lab rooms: 204, 205
-        $dceet = 'Department of Computer and Electronics Engineering Technology';
+        $decet = 'Department of Computer and Electronics Engineering Technology';
         DB::table('rooms')->whereIn('name', ['LEC 200', 'LEC 201', 'LAB 204', 'LAB 205'])
-            ->update(['department' => $dceet]);
+            ->update(['department' => $decet]);
 
         // ── 2. Department of Office Management and Information Technology (DOMIT) ──
         // Lecture rooms: 303, 304, 305 | Lab rooms: 104, 105, 203

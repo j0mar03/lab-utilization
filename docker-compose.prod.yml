@@ -26,6 +26,9 @@ services:
       # Telegram Bot Notifications
       - TELEGRAM_BOT_TOKEN=8375004820:AAFEqfIxsR5gqbthXSrq6_-76ZpB57nCF_M
       - TELEGRAM_DEFAULT_CHAT_ID=-1003201567471
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     networks:
       - facultyportfolio_default
 
@@ -67,6 +70,9 @@ services:
       - DB_PASSWORD=LabSystem2026!Secure
       - TELEGRAM_BOT_TOKEN=8375004820:AAFEqfIxsR5gqbthXSrq6_-76ZpB57nCF_M
       - TELEGRAM_DEFAULT_CHAT_ID=-1003201567471
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     entrypoint: ["sh", "-c", "sleep 15; while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"]
     depends_on:
       - app

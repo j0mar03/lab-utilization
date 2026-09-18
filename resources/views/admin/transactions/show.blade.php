@@ -254,12 +254,28 @@
                         ['Logged by',        $transaction->user?->name ?? 'System'],
                         ['Notes',            $transaction->notes ?? '—'],
                     ];
+
+                    if ($transaction->isRoom() && $transaction->hasSoftwareUtilized()) {
+                        $rows[] = ['Software Utilized', $transaction->softwareSummary()];
+                    }
                 @endphp
 
                 @foreach ($rows as [$label, $value])
                     <div class="flex px-5 py-3">
                         <dt class="w-40 text-sm text-gray-500 shrink-0">{{ $label }}</dt>
-                        <dd class="text-sm font-medium text-gray-900">{{ $value }}</dd>
+                        <dd class="text-sm font-medium text-gray-900">
+                            @if ($label === 'Software Utilized' && $transaction->hasSoftwareUtilized())
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach ((array) $transaction->software_utilized as $sw)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                            💻 {{ $sw }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                {{ $value }}
+                            @endif
+                        </dd>
                     </div>
                 @endforeach
 

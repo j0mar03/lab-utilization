@@ -20,6 +20,57 @@ class Transaction extends Model
 {
     use HasFactory;
 
+    public const SOFTWARE_CATALOG = [
+        'Adobe Creative Cloud' => [
+            'name'        => 'Adobe Creative Cloud',
+            'short'       => 'Adobe CC',
+            'icon'        => '🎨',
+            'category'    => 'Design & Multimedia',
+            'description' => 'Photoshop, Premiere Pro, Illustrator, InDesign, After Effects',
+            'departments' => ['DOMIT', 'DECET'],
+        ],
+        'Huawei eNSP' => [
+            'name'        => 'Huawei eNSP',
+            'short'       => 'Huawei eNSP',
+            'icon'        => '🌐',
+            'category'    => 'Networking Simulation',
+            'description' => 'Enterprise Network Simulation Platform (Routers, Switches, Firewalls, WLAN)',
+            'departments' => ['DECET'],
+        ],
+        'Microsoft Office 365' => [
+            'name'        => 'Microsoft Office 365',
+            'short'       => 'MS Office 365',
+            'icon'        => '📄',
+            'category'    => 'Office Productivity',
+            'description' => 'Word, Excel, PowerPoint, Access, Teams, Outlook',
+            'departments' => ['DOMIT', 'DEMET', 'DECET'],
+        ],
+        'Engineering Software' => [
+            'name'        => 'Engineering Software',
+            'short'       => 'Engineering CAD',
+            'icon'        => '📐',
+            'category'    => 'CAD & Simulation',
+            'description' => 'AutoCAD, SolidWorks, MATLAB, Proteus, NI Multisim, FluidSIM',
+            'departments' => ['DEMET', 'DECET'],
+        ],
+        'Programming & IDEs' => [
+            'name'        => 'Programming & IDEs',
+            'short'       => 'Programming / IDEs',
+            'icon'        => '💻',
+            'category'    => 'Software Development',
+            'description' => 'VS Code, Python, Java JDK, Android Studio, Arduino IDE, Git',
+            'departments' => ['DOMIT', 'DECET'],
+        ],
+        'Database & Server Tools' => [
+            'name'        => 'Database & Server Tools',
+            'short'       => 'DB & Server Tools',
+            'icon'        => '🗄️',
+            'category'    => 'Databases & Networking',
+            'description' => 'MySQL Workbench, XAMPP, Cisco Packet Tracer, Wireshark',
+            'departments' => ['DOMIT', 'DECET'],
+        ],
+    ];
+
     protected $fillable = [
         'user_id',
         'room_id',
@@ -29,6 +80,7 @@ class Transaction extends Model
         'borrower_email',
         'department',
         'subject',
+        'software_utilized',
         'checked_out_at',
         'expected_return_at',
         'returned_at',
@@ -44,7 +96,22 @@ class Transaction extends Model
             'expected_return_at' => 'datetime',
             'returned_at'        => 'datetime',
             'quantity'           => 'integer',
+            'software_utilized'  => 'array',
         ];
+    }
+
+    public function hasSoftwareUtilized(): bool
+    {
+        return !empty($this->software_utilized) && count($this->software_utilized) > 0;
+    }
+
+    public function softwareSummary(): string
+    {
+        if (!$this->hasSoftwareUtilized()) {
+            return '';
+        }
+
+        return implode(', ', (array) $this->software_utilized);
     }
 
     protected static function booted(): void
@@ -206,7 +273,7 @@ class Transaction extends Model
     {
         return match($this->department) {
             'Department of Office Management and Information Technology' => 'DOMIT',
-            'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+            'Department of Computer and Electronics Engineering Technology' => 'DECET',
             'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
             'DEMET & DOMIT', 'DEMET / DOMIT', 'DEMET and DOMIT' => 'DEMET & DOMIT',
             'Department of Civil and Railway Engineering Technology' => 'DCRET',

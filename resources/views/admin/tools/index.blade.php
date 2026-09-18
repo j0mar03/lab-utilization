@@ -115,7 +115,7 @@
                                             $deptCode = $tool->departmentShort();
                                             $badgeCls = match($deptCode) {
                                                 'DOMIT' => 'bg-purple-100 text-purple-800 border-purple-200',
-                                                'DCEET' => 'bg-blue-100 text-blue-800 border-blue-200',
+                                                'DECET' => 'bg-blue-100 text-blue-800 border-blue-200',
                                                 'DEMET' => 'bg-amber-100 text-amber-800 border-amber-200',
                                                 default => 'bg-gray-100 text-gray-800 border-gray-200',
                                             };

@@ -35,7 +35,7 @@ class Room extends Model
     {
         return match($this->department) {
             'Department of Office Management and Information Technology' => 'DOMIT',
-            'Department of Computer and Electronics Engineering Technology' => 'DCEET',
+            'Department of Computer and Electronics Engineering Technology' => 'DECET',
             'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
             'DEMET & DOMIT', 'DEMET / DOMIT', 'DEMET and DOMIT' => 'DEMET & DOMIT',
             'Department of Civil and Railway Engineering Technology' => 'DCRET',
