@@ -16,6 +16,7 @@ services:
       - HOME=/tmp
       - APP_ENV=production
       - APP_DEBUG=false
+      - APP_URL=https://lab.itechportfolio.xyz
       # Connect to existing facultyportfolio-db on VPS
       - DB_CONNECTION=mysql
       - DB_HOST=facultyportfolio-db
@@ -62,6 +63,7 @@ services:
       - TZ=Asia/Manila
       - HOME=/tmp
       - APP_ENV=production
+      - APP_URL=https://lab.itechportfolio.xyz
       - DB_CONNECTION=mysql
       - DB_HOST=facultyportfolio-db
       - DB_PORT=3306
