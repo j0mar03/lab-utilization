@@ -74,6 +74,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/transactions/create', [TransactionController::class, 'create'])->name('transactions.create');
             Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
             Route::post('/transactions/{transaction}/return', [TransactionController::class, 'markReturned'])->name('transactions.return');
+            Route::get('/transactions/{transaction}/edit', [TransactionController::class, 'edit'])->name('transactions.edit');
+            Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
+            Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
             Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
             Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         });

@@ -209,6 +209,8 @@
                                     <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
                                         <a href="{{ route('admin.transactions.show', $tx->id) }}"
                                            class="text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400">Details</a>
+                                        <a href="{{ route('admin.transactions.edit', $tx) }}"
+                                           class="text-xs font-medium text-amber-600 hover:text-amber-800 dark:text-amber-400">Edit</a>
                                         @if ($tx->status !== 'returned')
                                             @if ($tx->items->isNotEmpty())
                                                 <a href="{{ route('admin.transactions.show', $tx->id) }}#return-section"

@@ -1,19 +1,40 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('admin.transactions.index') }}"
-               class="text-gray-500 hover:text-gray-700 text-sm">
-                ← Transactions
-            </a>
-            <span class="text-gray-300">/</span>
-            <h2 class="font-semibold text-xl text-gray-800">
-                Transaction #{{ $transaction->id }}
-            </h2>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="{{ route('admin.transactions.index') }}"
+                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm">
+                    ← Transactions
+                </a>
+                <span class="text-gray-300 dark:text-gray-600">/</span>
+                <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200">
+                    Transaction #{{ $transaction->id }}
+                </h2>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('admin.transactions.edit', $transaction) }}"
+                   class="inline-flex items-center gap-1 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+                    ✏️ Edit Transaction
+                </a>
+            </div>
         </div>
     </x-slot>
 
     <div class="py-8">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8 space-y-5">
+
+            {{-- Flash Messages --}}
+            @if (session('success'))
+                <div class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-lg px-4 py-3 text-sm">
+                    ✅ {{ session('success') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-300 rounded-lg px-4 py-3 text-sm">
+                    ⚠️ {{ session('error') }}
+                </div>
+            @endif
 
             {{-- Status Banner --}}
             @if ($transaction->status === 'overdue')

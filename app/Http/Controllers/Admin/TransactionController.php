@@ -396,6 +396,186 @@ class TransactionController extends Controller
     }
 
     /**
+     * Show form to edit an existing transaction (fix wrong room, borrower, software, dates, status).
+     * GET /admin/transactions/{transaction}/edit
+     */
+    public function edit(Transaction $transaction): View
+    {
+        $transaction->load(['room', 'tool', 'items.tool']);
+
+        $rooms = Room::orderByRaw("
+            CASE 
+                WHEN department = 'Department of Computer and Electronics Engineering Technology' THEN 1
+                WHEN department = 'Department of Office Management and Information Technology' THEN 2
+                WHEN department = 'Department of Electrical and Mechanical Engineering Technology' THEN 3
+                ELSE 4
+            END,
+            CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END,
+            name
+        ")->get();
+
+        $tools           = Tool::where('is_active', true)->orderBy('department')->orderBy('category')->orderBy('name')->get();
+        $faculties       = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
+        $subjects        = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
+        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
+
+        return view('admin.transactions.edit', compact('transaction', 'rooms', 'tools', 'faculties', 'subjects', 'softwareCatalog'));
+    }
+
+    /**
+     * Update an existing transaction.
+     * PUT /admin/transactions/{transaction}
+     */
+    public function update(Request $request, Transaction $transaction): RedirectResponse
+    {
+        $isRoom = $transaction->isRoom() || $request->filled('room_id');
+
+        if ($isRoom) {
+            $validated = $request->validate([
+                'room_id'             => ['required', 'exists:rooms,id'],
+                'borrower_name'       => ['required', 'string', 'max:255'],
+                'borrower_email'      => ['nullable', 'email', 'max:255'],
+                'department'          => ['nullable', 'string', 'max:255'],
+                'subject'             => ['required', 'string', 'max:255'],
+                'software_utilized'   => ['nullable', 'array'],
+                'software_utilized.*' => ['string', 'max:100'],
+                'software_custom'     => ['nullable', 'string', 'max:255'],
+                'checked_out_at'      => ['required', 'date'],
+                'expected_return_at'  => ['nullable', 'date'],
+                'returned_at'         => ['nullable', 'date'],
+                'status'              => ['required', 'in:open,partially_returned,returned,overdue'],
+                'notes'               => ['nullable', 'string', 'max:1000'],
+            ]);
+
+            $softwareUtilized = (array) $request->input('software_utilized', []);
+            if ($request->filled('software_custom')) {
+                $customItems = array_filter(array_map('trim', explode(',', $request->input('software_custom'))));
+                foreach ($customItems as $cItem) {
+                    if (!in_array($cItem, $softwareUtilized)) {
+                        $softwareUtilized[] = $cItem;
+                    }
+                }
+            }
+            $softwareUtilized = !empty($softwareUtilized) ? array_values(array_unique($softwareUtilized)) : null;
+
+            $timeIn   = Carbon::parse($validated['checked_out_at']);
+            $timeOut  = $request->filled('returned_at') ? Carbon::parse($request->input('returned_at')) : null;
+            $expected = $request->filled('expected_return_at') ? Carbon::parse($request->input('expected_return_at')) : null;
+
+            $status = $validated['status'];
+            if ($status === 'returned' && ! $timeOut) {
+                $timeOut = now();
+            } elseif ($status === 'open' && ! $request->filled('returned_at')) {
+                $timeOut = null;
+            }
+
+            // If department wasn't explicitly chosen, resolve it
+            $department = $validated['department'] ?: Transaction::resolveDepartmentFor(
+                $validated['room_id'],
+                null,
+                $validated['borrower_name'],
+                $validated['subject']
+            );
+
+            $oldRoomName = $transaction->room?->name ?? 'None';
+
+            $transaction->update([
+                'room_id'            => $validated['room_id'],
+                'tool_id'            => null,
+                'borrower_name'      => $validated['borrower_name'],
+                'borrower_email'     => $validated['borrower_email'] ?? null,
+                'department'         => $department,
+                'subject'            => $validated['subject'],
+                'software_utilized'  => $softwareUtilized,
+                'checked_out_at'     => $timeIn,
+                'expected_return_at' => $expected,
+                'returned_at'        => $timeOut,
+                'status'             => $status,
+                'notes'              => $validated['notes'] ?? null,
+            ]);
+
+            $transaction->refresh()->load('room');
+            $newRoomName = $transaction->room?->name ?? 'None';
+
+            $msg = "Transaction #{$transaction->id} updated successfully.";
+            if ($oldRoomName !== $newRoomName) {
+                $msg .= " Room changed from {$oldRoomName} to {$newRoomName}.";
+            }
+
+            return redirect()->route('admin.transactions.show', $transaction)
+                ->with('success', $msg);
+        } else {
+            // Tool transaction update
+            $validated = $request->validate([
+                'tool_id'            => ['required', 'exists:tools,id'],
+                'quantity'           => ['required', 'integer', 'min:1'],
+                'borrower_name'      => ['required', 'string', 'max:255'],
+                'borrower_email'     => ['nullable', 'email', 'max:255'],
+                'department'         => ['nullable', 'string', 'max:255'],
+                'subject'            => ['nullable', 'string', 'max:255'],
+                'checked_out_at'     => ['required', 'date'],
+                'expected_return_at' => ['nullable', 'date'],
+                'returned_at'        => ['nullable', 'date'],
+                'status'             => ['required', 'in:open,partially_returned,returned,overdue'],
+                'notes'              => ['nullable', 'string', 'max:1000'],
+            ]);
+
+            $timeIn   = Carbon::parse($validated['checked_out_at']);
+            $timeOut  = $request->filled('returned_at') ? Carbon::parse($request->input('returned_at')) : null;
+            $expected = $request->filled('expected_return_at') ? Carbon::parse($request->input('expected_return_at')) : null;
+
+            $status = $validated['status'];
+            if ($status === 'returned' && ! $timeOut) {
+                $timeOut = now();
+            } elseif ($status === 'open' && ! $request->filled('returned_at')) {
+                $timeOut = null;
+            }
+
+            $department = $validated['department'] ?: Transaction::resolveDepartmentFor(
+                null,
+                $validated['tool_id'],
+                $validated['borrower_name'],
+                $validated['subject']
+            );
+
+            $transaction->update([
+                'tool_id'            => $validated['tool_id'],
+                'quantity'           => $validated['quantity'],
+                'borrower_name'      => $validated['borrower_name'],
+                'borrower_email'     => $validated['borrower_email'] ?? null,
+                'department'         => $department,
+                'subject'            => $validated['subject'] ?? null,
+                'checked_out_at'     => $timeIn,
+                'expected_return_at' => $expected,
+                'returned_at'        => $timeOut,
+                'status'             => $status,
+                'notes'              => $validated['notes'] ?? null,
+            ]);
+
+            return redirect()->route('admin.transactions.show', $transaction)
+                ->with('success', "Transaction #{$transaction->id} updated successfully.");
+        }
+    }
+
+    /**
+     * Delete an invalid or test transaction.
+     * DELETE /admin/transactions/{transaction}
+     */
+    public function destroy(Transaction $transaction): RedirectResponse
+    {
+        $id   = $transaction->id;
+        $name = $transaction->borrower_name;
+
+        // Delete any related transaction items or notification logs
+        $transaction->items()->delete();
+        $transaction->notificationLogs()->delete();
+        $transaction->delete();
+
+        return redirect()->route('admin.transactions.index')
+            ->with('success', "Transaction #{$id} ({$name}) has been deleted.");
+    }
+
+    /**
      * Show a single transaction's full details.
      * GET /admin/transactions/{transaction}
      */
