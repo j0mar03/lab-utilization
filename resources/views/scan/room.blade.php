@@ -24,16 +24,30 @@
 
         {{-- Current occupancy info --}}
         @if ($openTransactions->isNotEmpty())
-            <div class="mb-5 bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="text-base">🟡</span>
-                    <div>
-                        <p class="font-bold text-amber-900 text-xs">Room Currently Occupied</p>
-                        <p class="text-xs text-amber-700">In use by {{ $openTransactions->first()->borrower_name }}</p>
+            @php $primaryActiveTx = $openTransactions->first(); @endphp
+            @if ($primaryActiveTx->isOverdue())
+                <div class="mb-5 bg-red-50 border-2 border-red-300 rounded-xl p-3.5 flex items-center justify-between animate-pulse">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🚨</span>
+                        <div>
+                            <p class="font-bold text-red-900 text-xs">Room In Use — Overdue Session</p>
+                            <p class="text-xs text-red-700">Occupied by {{ $primaryActiveTx->borrower_name }} (due {{ $primaryActiveTx->expected_return_at?->diffForHumans() }})</p>
+                        </div>
                     </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-200 text-red-900">Overdue</span>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900">In Use</span>
-            </div>
+            @else
+                <div class="mb-5 bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🟡</span>
+                        <div>
+                            <p class="font-bold text-amber-900 text-xs">Room Currently Occupied</p>
+                            <p class="text-xs text-amber-700">In use by {{ $primaryActiveTx->borrower_name }}</p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900">In Use</span>
+                </div>
+            @endif
         @else
             <div class="mb-5 bg-green-50 border border-green-300 rounded-xl p-3.5 flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -67,24 +81,24 @@
                 {{-- Room Occupancy Conflict Alert & Handover Options --}}
                 @if ($openTransactions->isNotEmpty())
                     @php $currTx = $openTransactions->first(); @endphp
-                    <div class="mb-5 p-3.5 bg-amber-50 border border-amber-300 rounded-xl space-y-2">
-                        <div class="text-xs text-amber-900">
-                            <p class="font-bold text-sm text-amber-800 flex items-center gap-1.5">
-                                <span>⚠️ Room Currently In Use</span>
+                    <div class="mb-5 p-3.5 {{ $currTx->isOverdue() ? 'bg-red-50 border-2 border-red-300' : 'bg-amber-50 border border-amber-300' }} rounded-xl space-y-2">
+                        <div class="text-xs {{ $currTx->isOverdue() ? 'text-red-900' : 'text-amber-900' }}">
+                            <p class="font-bold text-sm {{ $currTx->isOverdue() ? 'text-red-800' : 'text-amber-800' }} flex items-center gap-1.5">
+                                <span>{{ $currTx->isOverdue() ? '🚨 Room Session is Overdue' : '⚠️ Room Currently In Use' }}</span>
                             </p>
                             <p class="mt-1">
                                 Currently registered to <strong>{{ $currTx->borrower_name }}</strong>
                                 @if ($currTx->subject) for <span class="italic">{{ $currTx->subject }}</span> @endif
-                                (since {{ $currTx->checked_out_at->format('g:i A') }}).
+                                (since {{ $currTx->checked_out_at->format('g:i A') }}{{ $currTx->isOverdue() ? ', past due since ' . $currTx->expected_return_at->format('g:i A') : '' }}).
                             </p>
                         </div>
-                        <div class="pt-2 border-t border-amber-200 text-xs space-y-2">
-                            <label class="flex items-center gap-2 font-semibold text-amber-950 cursor-pointer">
+                        <div class="pt-2 border-t {{ $currTx->isOverdue() ? 'border-red-200' : 'border-amber-200' }} text-xs space-y-2">
+                            <label class="flex items-center gap-2 font-semibold text-gray-900 cursor-pointer">
                                 <input type="radio" name="conflict_resolution" value="end_previous" checked
                                        class="text-blue-600 focus:ring-blue-500">
                                 <span>🔄 Take over room (End previous session)</span>
                             </label>
-                            <label class="flex items-center gap-2 text-amber-800 cursor-pointer">
+                            <label class="flex items-center gap-2 text-gray-700 cursor-pointer">
                                 <input type="radio" name="conflict_resolution" value="allow_concurrent"
                                        class="text-blue-600 focus:ring-blue-500">
                                 <span>👥 Share room with current user</span>

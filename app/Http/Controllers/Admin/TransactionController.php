@@ -100,7 +100,7 @@ class TransactionController extends Controller
     public function create(): View
     {
         $rooms = Room::with(['transactions' => function ($q) {
-            $q->whereIn('status', ['open', 'partially_returned'])->latest('checked_out_at');
+            $q->whereIn('status', ['open', 'partially_returned', 'overdue'])->latest('checked_out_at');
         }])->orderByRaw("
             CASE 
                 WHEN department = 'Department of Computer and Electronics Engineering Technology' THEN 1
@@ -232,7 +232,7 @@ class TransactionController extends Controller
 
             // ── CONFLICT DETECTION: Check if room is already occupied ────
             $activeRoomTx = Transaction::where('room_id', $validated['room_id'])
-                ->whereIn('status', ['open', 'partially_returned'])
+                ->whereIn('status', ['open', 'partially_returned', 'overdue'])
                 ->latest('checked_out_at')
                 ->first();
 

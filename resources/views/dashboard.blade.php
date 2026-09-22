@@ -388,13 +388,23 @@
 
                                     {{-- Status Badge --}}
                                     @if ($isOcc)
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300 border border-red-300 dark:border-red-800 shrink-0">
-                                            <span class="relative flex h-2 w-2">
-                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                        @if ($activeTx && $activeTx->isOverdue())
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 border-2 border-red-500 shrink-0 animate-pulse" title="Session is past its expected end time">
+                                                <span class="relative flex h-2 w-2">
+                                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                                                </span>
+                                                🚨 OVERDUE
                                             </span>
-                                            IN USE
-                                        </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300 border border-red-300 dark:border-red-800 shrink-0">
+                                                <span class="relative flex h-2 w-2">
+                                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                </span>
+                                                IN USE
+                                            </span>
+                                        @endif
                                     @else
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shrink-0">
                                             🟢 AVAILABLE

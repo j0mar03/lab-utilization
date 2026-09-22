@@ -29,7 +29,7 @@ class DashboardController extends Controller
         // ── Room Metrics & Live Room Board ─────────────────────────────────
         $allRooms = Room::with([
             'transactions' => fn ($q) => $q
-                ->whereIn('status', ['open', 'partially_returned'])
+                ->whereIn('status', ['open', 'partially_returned', 'overdue'])
                 ->with(['items.tool'])
                 ->latest('checked_out_at'),
         ])->orderByRaw("
@@ -77,10 +77,10 @@ class DashboardController extends Controller
 
         // ── Current Borrowed Tools (Direct or Multi-item) ──────────────────
         $borrowedTools = Tool::where(function ($query) {
-            $query->whereHas('transactions', fn ($q) => $q->whereIn('status', ['open', 'partially_returned']))
+            $query->whereHas('transactions', fn ($q) => $q->whereIn('status', ['open', 'partially_returned', 'overdue']))
                   ->orWhereHas('transactionItems', fn ($q) => $q->where('status', 'borrowed'));
         })->with([
-            'transactions' => fn ($q) => $q->whereIn('status', ['open', 'partially_returned'])->latest('checked_out_at'),
+            'transactions' => fn ($q) => $q->whereIn('status', ['open', 'partially_returned', 'overdue'])->latest('checked_out_at'),
             'transactionItems' => fn ($q) => $q->where('status', 'borrowed')->with('transaction'),
         ])->orderBy('department')->orderBy('category')
           ->get();

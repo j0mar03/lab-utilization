@@ -225,7 +225,7 @@ class Transaction extends Model
 
     public function scopeActive($query)
     {
-        return $query->whereIn('status', ['open', 'partially_returned']);
+        return $query->whereIn('status', ['open', 'partially_returned', 'overdue']);
     }
 
     public function scopeOverdue($query)
@@ -330,7 +330,12 @@ class Transaction extends Model
 
     public function isOverdue(): bool
     {
-        return $this->status === 'overdue';
+        return $this->status === 'overdue' || $this->isPastDue();
+    }
+
+    public function isActive(): bool
+    {
+        return in_array($this->status, ['open', 'partially_returned', 'overdue']) && $this->returned_at === null;
     }
 
     /**

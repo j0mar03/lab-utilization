@@ -45,9 +45,9 @@ class ScanController extends Controller
      */
     public function room(Room $room): View
     {
-        // Find any currently open transactions for this room
+        // Find any currently open or overdue transactions for this room
         $openTransactions = $room->transactions()
-            ->where('status', 'open')
+            ->whereIn('status', ['open', 'partially_returned', 'overdue'])
             ->with('user')
             ->latest('checked_out_at')
             ->get();
@@ -88,7 +88,7 @@ class ScanController extends Controller
 
         // ── Room Occupancy Conflict Handling ────────────────────────────
         $activeTransactions = $room->transactions()
-            ->whereIn('status', ['open', 'partially_returned'])
+            ->whereIn('status', ['open', 'partially_returned', 'overdue'])
             ->get();
 
         if ($activeTransactions->isNotEmpty()) {

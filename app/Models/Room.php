@@ -112,11 +112,11 @@ class Room extends Model
     public function currentTransaction(): ?Transaction
     {
         if ($this->relationLoaded('transactions')) {
-            return $this->transactions->first(fn ($t) => in_array($t->status, ['open', 'partially_returned']));
+            return $this->transactions->first(fn ($t) => in_array($t->status, ['open', 'partially_returned', 'overdue']));
         }
 
         return $this->transactions()
-            ->whereIn('status', ['open', 'partially_returned'])
+            ->whereIn('status', ['open', 'partially_returned', 'overdue'])
             ->latest('checked_out_at')
             ->first();
     }
@@ -134,22 +134,22 @@ class Room extends Model
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Rooms that currently have an open (active) checkout.
+     * Rooms that currently have an open or overdue checkout (still occupied).
      */
     public function scopeOccupied($query)
     {
         return $query->whereHas('transactions', function ($q) {
-            $q->where('status', 'open');
+            $q->whereIn('status', ['open', 'partially_returned', 'overdue']);
         });
     }
 
     /**
-     * Rooms with no open checkout — available right now.
+     * Rooms with no active checkout — truly available right now.
      */
     public function scopeAvailable($query)
     {
         return $query->whereDoesntHave('transactions', function ($q) {
-            $q->where('status', 'open');
+            $q->whereIn('status', ['open', 'partially_returned', 'overdue']);
         });
     }
 
