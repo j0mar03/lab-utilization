@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\FacultyController;
 use App\Http\Controllers\Admin\QrController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\RoomController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\TransactionController;
@@ -109,8 +110,8 @@ Route::middleware(['auth'])->group(function () {
             Route::resource('faculties', FacultyController::class);
             Route::resource('subjects', SubjectController::class);
 
-            // Room management — Phase 3 stub
-            Route::get('/rooms', fn () => abort(501, 'Room management coming soon'))->name('rooms.index');
+            // Room management
+            Route::resource('rooms', RoomController::class);
 
             // User management
             Route::resource('users', \App\Http\Controllers\Admin\UserController::class);

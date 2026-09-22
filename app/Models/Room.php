@@ -86,6 +86,26 @@ class Room extends Model
         return str_starts_with(strtoupper($this->name), 'LEC');
     }
 
+    public function roomType(): string
+    {
+        if ($this->isComputerLab()) return 'Computer Lab';
+        if ($this->isEngineeringLab()) return 'Engineering Lab';
+        if ($this->isLab()) return 'Laboratory';
+        if ($this->isOffice()) return 'Office';
+        if ($this->isLecture()) return 'Lecture Room';
+        return 'General Room';
+    }
+
+    public function roomTypeBadge(): string
+    {
+        if ($this->isComputerLab()) return '💻 Computer Lab';
+        if ($this->isEngineeringLab()) return '⚙️ Engineering Lab';
+        if ($this->isLab()) return '🔬 Laboratory';
+        if ($this->isOffice()) return '🏢 Office';
+        if ($this->isLecture()) return '📖 Lecture';
+        return '🏫 General';
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Relationships
     // ─────────────────────────────────────────────────────────────────────────

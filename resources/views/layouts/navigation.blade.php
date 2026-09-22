@@ -35,6 +35,10 @@
                             {{ __('📚 Subjects') }}
                         </x-nav-link>
 
+                        <x-nav-link :href="route('admin.rooms.index')" :active="request()->routeIs('admin.rooms.*')">
+                            {{ __('🏫 Rooms') }}
+                        </x-nav-link>
+
                         <x-nav-link :href="route('admin.tools.index')" :active="request()->routeIs('admin.tools.*')">
                             {{ __('🔧 Tools') }}
                         </x-nav-link>
@@ -129,6 +133,10 @@
 
                 <x-responsive-nav-link :href="route('admin.subjects.index')" :active="request()->routeIs('admin.subjects.*')">
                     {{ __('📚 Subjects') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.rooms.index')" :active="request()->routeIs('admin.rooms.*')">
+                    {{ __('🏫 Rooms') }}
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.tools.index')" :active="request()->routeIs('admin.tools.*')">
