@@ -34,6 +34,7 @@
              toolRows: {{ Js::from(old('tools', [
                  ['tool_id' => old('tool_id', ''), 'quantity' => (int) old('quantity', 1)]
              ])) }},
+             roomToolRows: {{ Js::from(old('room_tools', [])) }},
 
              addToolRow() {
                  this.toolRows.push({ tool_id: '', quantity: 1 });
@@ -42,6 +43,40 @@
              removeToolRow(index) {
                  if (this.toolRows.length > 1) {
                      this.toolRows.splice(index, 1);
+                 }
+             },
+
+             addRoomToolRow(toolId = '') {
+                 this.roomToolRows.push({ tool_id: toolId, quantity: 1 });
+             },
+
+             removeRoomToolRow(index) {
+                 this.roomToolRows.splice(index, 1);
+             },
+
+             quickAddRoomTool(toolNameKeyword) {
+                 const kw = toolNameKeyword.toLowerCase();
+                 const found = this.availableTools.find(t => 
+                     t.available > 0 && (
+                         t.name.toLowerCase().includes(kw) || 
+                         (t.category && t.category.toLowerCase().includes(kw))
+                     )
+                 ) || this.availableTools.find(t => 
+                     t.name.toLowerCase().includes(kw) || 
+                     (t.category && t.category.toLowerCase().includes(kw))
+                 );
+
+                 if (found) {
+                     const existing = this.roomToolRows.find(r => r.tool_id == found.id);
+                     if (existing) {
+                         if (existing.quantity < found.available) {
+                             existing.quantity++;
+                         }
+                     } else {
+                         this.addRoomToolRow(found.id);
+                     }
+                 } else {
+                     this.addRoomToolRow('');
                  }
              },
 
@@ -376,6 +411,118 @@
                                        placeholder="e.g., Blender, Proteus 8, Wireshark, Quartus Prime (separate with comma)"
                                        class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg shadow-sm text-xs">
                             </div>
+                        </div>
+
+                        {{-- ── Tools & Accessories Borrowed with this Room ──────────────── --}}
+                        <div class="p-4 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base">📦</span>
+                                    <div>
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-2">
+                                            <span>Borrow Tools & Accessories for this Room (Optional)</span>
+                                            <template x-if="roomToolRows.length > 0">
+                                                <span class="px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 text-[10px] font-bold"
+                                                      x-text="roomToolRows.length + ' item' + (roomToolRows.length > 1 ? 's' : '')"></span>
+                                            </template>
+                                        </h4>
+                                        <p class="text-xs text-amber-700/80 dark:text-amber-400">
+                                            Need HDMI cable, projector remote, TV pen, clicker, or keys for this room session?
+                                        </p>
+                                    </div>
+                                </div>
+                                <button type="button" @click="addRoomToolRow()"
+                                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:hover:bg-amber-800/60 text-amber-800 dark:text-amber-300 rounded-lg text-xs font-semibold shadow-sm transition">
+                                    <span>➕ Add Tool</span>
+                                </button>
+                            </div>
+
+                            {{-- Quick-Add Shortcut Chips --}}
+                            <div>
+                                <span class="text-[11px] font-semibold text-amber-800 dark:text-amber-400 block mb-1.5">⚡ 1-Click Quick Add:</span>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <button type="button" @click="quickAddRoomTool('HDMI')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition">
+                                        <span>🔌 HDMI Cable</span>
+                                    </button>
+                                    <button type="button" @click="quickAddRoomTool('REMOTE')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition">
+                                        <span>📱 Projector / TV Remote</span>
+                                    </button>
+                                    <button type="button" @click="quickAddRoomTool('PROJECTOR')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition">
+                                        <span>📽️ Projector</span>
+                                    </button>
+                                    <button type="button" @click="quickAddRoomTool('EXTENSION')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition">
+                                        <span>🔌 Extension Cord</span>
+                                    </button>
+                                    <button type="button" @click="quickAddRoomTool('PRESENTER')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition">
+                                        <span>🖱️ Presenter / Clicker</span>
+                                    </button>
+                                    <button type="button" @click="quickAddRoomTool('KEY')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition">
+                                        <span>🔑 Room Keys</span>
+                                    </button>
+                                    <button type="button" @click="quickAddRoomTool('PEN')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition">
+                                        <span>🖊️ Smart TV Pen</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {{-- Selected Room Tools List --}}
+                            <template x-if="roomToolRows.length > 0">
+                                <div class="space-y-2 pt-2 border-t border-amber-200 dark:border-amber-800/50">
+                                    <template x-for="(row, index) in roomToolRows" :key="index">
+                                        <div class="p-2.5 rounded-lg bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 flex flex-wrap sm:flex-nowrap items-center gap-2">
+                                            <div class="flex-1 min-w-[200px]">
+                                                <select :name="'room_tools[' + index + '][tool_id]'"
+                                                        x-model="row.tool_id"
+                                                        :disabled="type !== 'room'"
+                                                        class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md text-xs py-1.5 px-2 focus:ring-amber-500 focus:border-amber-500">
+                                                    <option value="">— Select Tool / Accessory —</option>
+                                                    @foreach ($tools->groupBy(fn($t) => $t->department ?: 'General / Shared Inventory') as $deptName => $deptTools)
+                                                        <optgroup label="{{ $deptName }}">
+                                                            @foreach ($deptTools as $t)
+                                                                <option value="{{ $t->id }}" {{ $t->available_quantity <= 0 ? 'disabled' : '' }}>
+                                                                    {{ $t->name }} ({{ $t->category }}) — {{ $t->available_quantity }}/{{ $t->total_quantity }} avail{{ $t->available_quantity <= 0 ? ' (Out of stock)' : '' }}
+                                                                </option>
+                                                            @endforeach
+                                                        </optgroup>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            <div class="w-28 shrink-0 flex items-center gap-1.5">
+                                                <label class="text-[10px] text-gray-500">Qty:</label>
+                                                <input type="number"
+                                                       :name="'room_tools[' + index + '][quantity]'"
+                                                       x-model.number="row.quantity"
+                                                       min="1"
+                                                       :max="getToolInfo(row.tool_id) ? getToolInfo(row.tool_id).available : 99"
+                                                       :disabled="type !== 'room'"
+                                                       class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md text-xs py-1 px-1.5 text-center font-bold">
+                                            </div>
+
+                                            <button type="button" @click="removeRoomToolRow(index)"
+                                                    class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition shrink-0"
+                                                    title="Remove accessory">
+                                                ✕ Remove
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template x-if="roomToolRows.length === 0">
+                                <p class="text-[11px] text-amber-700/70 dark:text-amber-400 italic pt-1">
+                                    No accessories attached yet. Click a quick add chip or "+ Add Tool" above if faculty is borrowing remotes, cables, or equipment along with this room.
+                                </p>
+                            </template>
+
+                            <x-input-error class="mt-1" :messages="$errors->get('room_tools')" />
                         </div>
                     </div>
 

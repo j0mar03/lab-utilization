@@ -60,6 +60,13 @@ class TelegramService
             if ($transaction->hasSoftwareUtilized()) {
                 $message .= "💻 *Software Utilized:* " . $transaction->softwareSummary() . "\n";
             }
+            if ($transaction->items && $transaction->items->isNotEmpty()) {
+                $itemList = $transaction->items->map(function ($item) {
+                    $name = $item->tool?->name ?? 'Tool';
+                    return "   • {$name} (×{$item->quantity_borrowed})";
+                })->join("\n");
+                $message .= "📦 *Accessories / Equipment Borrowed:*\n{$itemList}\n";
+            }
         } else {
             if ($transaction->items && $transaction->items->isNotEmpty()) {
                 $itemList = $transaction->items->map(function ($item) {
@@ -113,6 +120,16 @@ class TelegramService
             $message .= "🚪 *Room:* " . ($transaction->room?->name ?? 'Room') . "\n";
             if ($transaction->hasSoftwareUtilized()) {
                 $message .= "💻 *Software:* " . $transaction->softwareSummary() . "\n";
+            }
+            if ($transaction->items && $transaction->items->isNotEmpty()) {
+                $itemList = $transaction->items->map(function ($item) {
+                    $name = $item->tool?->name ?? 'Tool';
+                    $ret = $item->quantity_returned;
+                    $borrowed = $item->quantity_borrowed;
+                    $statusIcon = $item->status === 'returned' ? '✓' : '⏳';
+                    return "   • {$name} ({$ret}/{$borrowed} returned) {$statusIcon}";
+                })->join("\n");
+                $message .= "📦 *Accessories / Tools:*\n{$itemList}\n";
             }
         } else {
             $message .= "📦 *Item:* " . $transaction->subjectDescription() . "\n";

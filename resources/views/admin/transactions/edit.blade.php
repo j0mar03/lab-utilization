@@ -325,6 +325,33 @@
                         </div>
                     @endif
 
+                    @if ($transaction->items->isNotEmpty())
+                        <div class="border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 rounded-xl p-4 space-y-2">
+                            <label class="block text-sm font-semibold text-amber-900 dark:text-amber-300">
+                                📦 Borrowed Tools & Accessories ({{ $transaction->items->count() }})
+                            </label>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Equipment and accessories checked out for this transaction:
+                            </p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                @foreach ($transaction->items as $item)
+                                    <div class="p-2.5 rounded-lg bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 flex items-center justify-between text-xs">
+                                        <div>
+                                            <span class="font-semibold text-gray-900 dark:text-white">{{ $item->tool?->name ?? 'Tool' }}</span>
+                                            <span class="text-gray-500 dark:text-gray-400 block text-[11px]">{{ $item->tool?->category ?? 'General' }}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="font-bold text-amber-700 dark:text-amber-400">×{{ $item->quantity_borrowed }}</span>
+                                            <span class="block text-[10px] {{ $item->status === 'returned' ? 'text-green-600 font-semibold' : 'text-amber-600' }}">
+                                                {{ $item->status === 'returned' ? '✓ Returned' : '⏳ Checked Out' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- ── TIMESTAMPS & STATUS ──────────────────────────────────── --}}
                     <div class="border-t border-gray-100 dark:border-gray-700 pt-5">
                         <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">

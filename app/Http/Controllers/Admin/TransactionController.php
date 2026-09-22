@@ -174,6 +174,46 @@ class TransactionController extends Controller
             }
             $softwareUtilized = !empty($softwareUtilized) ? array_values(array_unique($softwareUtilized)) : null;
 
+            // ── OPTIONAL TOOLS & ACCESSORIES BORROWED WITH ROOM ───────
+            $rawRoomTools = $request->input('room_tools', $request->input('tools', []));
+            $roomItemsData = [];
+
+            if (is_array($rawRoomTools) && count($rawRoomTools) > 0) {
+                foreach ($rawRoomTools as $t) {
+                    if (empty($t['tool_id'])) continue;
+                    $roomItemsData[] = [
+                        'tool_id'  => (int) $t['tool_id'],
+                        'quantity' => max(1, (int) ($t['quantity'] ?? 1)),
+                    ];
+                }
+            }
+
+            // Consolidate duplicates if same tool selected multiple times
+            $consolidatedRoomTools = [];
+            foreach ($roomItemsData as $item) {
+                $tid = $item['tool_id'];
+                if (isset($consolidatedRoomTools[$tid])) {
+                    $consolidatedRoomTools[$tid]['quantity'] += $item['quantity'];
+                } else {
+                    $consolidatedRoomTools[$tid] = $item;
+                }
+            }
+            $roomItemsData = array_values($consolidatedRoomTools);
+
+            // Validate tools availability
+            foreach ($roomItemsData as $item) {
+                $tool = Tool::findOrFail($item['tool_id']);
+                if (! $tool->is_active) {
+                    return back()->withErrors(['room_tools' => "Tool '{$tool->name}' is currently marked as inactive."])->withInput();
+                }
+
+                if (! $timeOut && $item['quantity'] > $tool->available_quantity) {
+                    return back()->withErrors([
+                        'room_tools' => "Only {$tool->available_quantity} unit(s) available for '{$tool->name}' (requested: {$item['quantity']})."
+                    ])->withInput();
+                }
+            }
+
             $transaction = Transaction::create([
                 'user_id'            => auth()->id(),
                 'room_id'            => $validated['room_id'],
@@ -191,6 +231,18 @@ class TransactionController extends Controller
                 'notes'              => $validated['notes'] ?? null,
                 'source'             => 'dashboard',
             ]);
+
+            // Save each borrowed tool item attached to this room session
+            foreach ($roomItemsData as $item) {
+                TransactionItem::create([
+                    'transaction_id'    => $transaction->id,
+                    'tool_id'           => $item['tool_id'],
+                    'quantity_borrowed' => $item['quantity'],
+                    'quantity_returned' => $timeOut ? $item['quantity'] : 0,
+                    'status'            => $timeOut ? 'returned' : 'borrowed',
+                    'returned_at'       => $timeOut,
+                ]);
+            }
         } else {
             // ── MULTI-TOOL & SINGLE-TOOL BORROWING ────────────────────────────
             $rawTools = $request->input('tools');
@@ -290,11 +342,20 @@ class TransactionController extends Controller
 
         $transaction->load(['room', 'tool', 'items.tool']);
 
+        $itemCount = $transaction->items->count();
         if ($status === 'open') {
             $this->telegram->sendCheckoutNotification($transaction);
-            $msg = "Transaction #{$transaction->id} created successfully (Active / In-Use).";
+            if ($type === 'room' && $itemCount > 0) {
+                $msg = "Transaction #{$transaction->id} created successfully for Room {$transaction->room?->name} with {$itemCount} accessory/tool item(s) checked out.";
+            } else {
+                $msg = "Transaction #{$transaction->id} created successfully (Active / In-Use).";
+            }
         } else {
-            $msg = "Transaction #{$transaction->id} recorded into logbook as Completed (Returned at {$timeOut->format('M d, Y h:i A')}).";
+            if ($type === 'room' && $itemCount > 0) {
+                $msg = "Transaction #{$transaction->id} recorded into logbook as Completed (Room {$transaction->room?->name} and {$itemCount} accessory item(s) returned at {$timeOut->format('M d, Y h:i A')}).";
+            } else {
+                $msg = "Transaction #{$transaction->id} recorded into logbook as Completed (Returned at {$timeOut->format('M d, Y h:i A')}).";
+            }
         }
 
         return redirect()->route('admin.transactions.index')
@@ -371,7 +432,11 @@ class TransactionController extends Controller
                     'status'      => 'returned',
                     'returned_at' => now(),
                 ]);
-                $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — All tools have been fully returned.";
+                if ($transaction->room_id) {
+                    $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Room {$transaction->room?->name} and all borrowed tools/accessories have been fully returned.";
+                } else {
+                    $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — All tools have been fully returned.";
+                }
             } elseif ($anyReturned) {
                 $transaction->update([
                     'status' => 'partially_returned',
@@ -494,7 +559,20 @@ class TransactionController extends Controller
                 'notes'              => $validated['notes'] ?? null,
             ]);
 
-            $transaction->refresh()->load('room');
+            $transaction->refresh()->load(['room', 'items']);
+
+            if ($status === 'returned') {
+                foreach ($transaction->items as $item) {
+                    if ($item->status !== 'returned') {
+                        $item->update([
+                            'quantity_returned' => $item->quantity_borrowed,
+                            'status'            => 'returned',
+                            'returned_at'       => $timeOut ?: now(),
+                        ]);
+                    }
+                }
+            }
+
             $newRoomName = $transaction->room?->name ?? 'None';
 
             $msg = "Transaction #{$transaction->id} updated successfully.";
