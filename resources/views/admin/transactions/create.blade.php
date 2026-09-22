@@ -35,6 +35,20 @@
                  ['tool_id' => old('tool_id', ''), 'quantity' => (int) old('quantity', 1)]
              ])) }},
              roomToolRows: {{ Js::from(old('room_tools', [])) }},
+             selectedRoomId: '{{ old('room_id', '') }}',
+             occupiedRooms: {{ Js::from($rooms->filter(fn($r) => $r->isOccupied())->mapWithKeys(fn($r) => [
+                 $r->id => [
+                     'id' => $r->id,
+                     'name' => $r->name,
+                     'borrower_name' => $r->currentTransaction()?->borrower_name,
+                     'subject' => $r->currentTransaction()?->subject,
+                     'checked_out_at' => $r->currentTransaction()?->checked_out_at?->format('M d, g:i A'),
+                     'transaction_id' => $r->currentTransaction()?->id,
+                 ]
+             ])) }},
+             get currentOccupancy() {
+                 return this.selectedRoomId && this.occupiedRooms[this.selectedRoomId] ? this.occupiedRooms[this.selectedRoomId] : null;
+             },
 
              addToolRow() {
                  this.toolRows.push({ tool_id: '', quantity: 1 });
@@ -175,6 +189,7 @@
              },
 
              onRoomSelect(event) {
+                 this.selectedRoomId = event.target.value;
                  const opt = event.target.selectedOptions[0];
                  if (opt && opt.dataset.department) {
                      if (!this.selectedDepartment) {
@@ -296,6 +311,7 @@
                         <div>
                             <x-input-label for="room_id" value="Select Room to Use *" />
                             <select id="room_id" name="room_id"
+                                    x-model="selectedRoomId"
                                     @change="onRoomSelect($event)"
                                     :disabled="type !== 'room'"
                                     :required="type === 'room'"
@@ -304,16 +320,57 @@
                                 @foreach ($rooms->groupBy(fn($r) => $r->department ?: 'General / Shared Lecture Rooms') as $dept => $roomList)
                                     <optgroup label="{{ $dept }} ({{ $roomList->first()->departmentShort() }})">
                                         @foreach ($roomList as $r)
+                                            @php
+                                                $isOcc = $r->isOccupied();
+                                                $curr = $r->currentTransaction();
+                                            @endphp
                                             <option value="{{ $r->id }}"
                                                     data-department="{{ $r->department }}"
                                                     {{ old('room_id') == $r->id ? 'selected' : '' }}>
-                                                {{ $r->isLab() ? '🔬 ' : '📖 ' }}{{ $r->name }} — {{ $r->isLab() ? 'Laboratory Room' : 'Lecture Room' }}
+                                                {{ $isOcc ? '🔴 [IN USE: ' . Str::limit($curr?->borrower_name ?? 'Active', 18) . '] ' : ($r->isLab() ? '🔬 ' : '📖 ') }}{{ $r->name }} — {{ $r->isLab() ? 'Laboratory' : 'Lecture' }}{{ $isOcc ? ' (Occupied)' : ' (Available)' }}
                                             </option>
                                         @endforeach
                                     </optgroup>
                                 @endforeach
                             </select>
                             <x-input-error class="mt-2" :messages="$errors->get('room_id')" />
+
+                            {{-- Real-time Occupancy Conflict Alert --}}
+                            <template x-if="currentOccupancy">
+                                <div class="mt-2.5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60 space-y-2.5">
+                                    <div class="flex items-start gap-2.5">
+                                        <span class="text-xl">⚠️</span>
+                                        <div class="text-xs text-amber-900 dark:text-amber-200">
+                                            <p class="font-bold text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                                                <span>Room is Currently In Use</span>
+                                                <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 font-bold">
+                                                    Session #<span x-text="currentOccupancy.transaction_id"></span>
+                                                </span>
+                                            </p>
+                                            <p class="mt-0.5">
+                                                Currently checked out to <strong class="font-semibold" x-text="currentOccupancy.borrower_name"></strong>
+                                                <template x-if="currentOccupancy.subject">
+                                                    <span>for <span class="italic font-medium" x-text="currentOccupancy.subject"></span></span>
+                                                </template>
+                                                (since <span x-text="currentOccupancy.checked_out_at"></span>).
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-2 border-t border-amber-200 dark:border-amber-800/60 space-y-1.5">
+                                        <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-amber-950 dark:text-amber-200">
+                                            <input type="radio" name="conflict_resolution" value="end_previous" checked
+                                                   class="text-amber-600 focus:ring-amber-500">
+                                            <span>🔄 Automatically End & Return previous session (Clean handover to new instructor)</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer text-xs text-amber-800 dark:text-amber-300">
+                                            <input type="radio" name="conflict_resolution" value="allow_concurrent"
+                                                   class="text-amber-600 focus:ring-amber-500">
+                                            <span>👥 Allow Concurrent / Shared Room Occupancy (Both sessions will remain active)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
 
                         {{-- Subject Selection & Custom Input --}}

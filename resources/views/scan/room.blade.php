@@ -24,26 +24,26 @@
 
         {{-- Current occupancy info --}}
         @if ($openTransactions->isNotEmpty())
-            <div class="mb-5 bg-yellow-50 border border-yellow-300 rounded-xl p-4">
-                <p class="font-semibold text-yellow-800 text-sm mb-2">
-                    🟡 Room currently in use
-                </p>
-                @foreach ($openTransactions as $tx)
-                    <div class="text-sm text-yellow-700 mb-1">
-                        <span class="font-medium">{{ $tx->borrower_name }}</span>
-                        @if ($tx->subject) — {{ $tx->subject }} @endif
-                        <span class="text-yellow-500 ml-1 text-xs">
-                            (since {{ $tx->checked_out_at->format('g:i A') }})
-                        </span>
+            <div class="mb-5 bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">🟡</span>
+                    <div>
+                        <p class="font-bold text-amber-900 text-xs">Room Currently Occupied</p>
+                        <p class="text-xs text-amber-700">In use by {{ $openTransactions->first()->borrower_name }}</p>
                     </div>
-                @endforeach
-                <p class="text-xs text-yellow-600 mt-2">
-                    Multiple users can share the room. Fill in your details below.
-                </p>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900">In Use</span>
             </div>
         @else
-            <div class="mb-5 bg-green-50 border border-green-300 rounded-xl p-4">
-                <p class="font-semibold text-green-800 text-sm">🟢 Room is available</p>
+            <div class="mb-5 bg-green-50 border border-green-300 rounded-xl p-3.5 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">🟢</span>
+                    <div>
+                        <p class="font-bold text-green-900 text-xs">Room Available</p>
+                        <p class="text-xs text-green-700">Ready for class or lab utilization</p>
+                    </div>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-green-200 text-green-900">Available</span>
             </div>
         @endif
 
@@ -60,8 +60,38 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
             <h2 class="font-bold text-gray-800 text-lg mb-4">Check Out Room</h2>
 
-            <form method="POST" action="{{ route('scan.room.checkout', $room->id) }}">
+            <form method="POST" action="{{ route('scan.room.checkout', $room->id) }}"
+                  onsubmit="const btn = this.querySelector('button[type=submit]'); if (btn) { btn.disabled = true; btn.innerText = '⏳ Checking Out...'; }">
                 @csrf
+
+                {{-- Room Occupancy Conflict Alert & Handover Options --}}
+                @if ($openTransactions->isNotEmpty())
+                    @php $currTx = $openTransactions->first(); @endphp
+                    <div class="mb-5 p-3.5 bg-amber-50 border border-amber-300 rounded-xl space-y-2">
+                        <div class="text-xs text-amber-900">
+                            <p class="font-bold text-sm text-amber-800 flex items-center gap-1.5">
+                                <span>⚠️ Room Currently In Use</span>
+                            </p>
+                            <p class="mt-1">
+                                Currently registered to <strong>{{ $currTx->borrower_name }}</strong>
+                                @if ($currTx->subject) for <span class="italic">{{ $currTx->subject }}</span> @endif
+                                (since {{ $currTx->checked_out_at->format('g:i A') }}).
+                            </p>
+                        </div>
+                        <div class="pt-2 border-t border-amber-200 text-xs space-y-2">
+                            <label class="flex items-center gap-2 font-semibold text-amber-950 cursor-pointer">
+                                <input type="radio" name="conflict_resolution" value="end_previous" checked
+                                       class="text-blue-600 focus:ring-blue-500">
+                                <span>🔄 Take over room (End previous session)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-amber-800 cursor-pointer">
+                                <input type="radio" name="conflict_resolution" value="allow_concurrent"
+                                       class="text-blue-600 focus:ring-blue-500">
+                                <span>👥 Share room with current user</span>
+                            </label>
+                        </div>
+                    </div>
+                @endif
 
                 {{-- Faculty / Borrower Selector --}}
                 <div class="mb-4">

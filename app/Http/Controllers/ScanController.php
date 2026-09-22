@@ -74,6 +74,49 @@ class ScanController extends Controller
             'subject.required'       => 'Please enter the subject/purpose.',
         ]);
 
+        // Prevent accidental double-tap duplicate within 30 seconds
+        $recentDuplicate = Transaction::where('room_id', $room->id)
+            ->where('borrower_name', $validated['borrower_name'])
+            ->where('checked_out_at', '>=', now()->subSeconds(30))
+            ->latest('id')
+            ->first();
+
+        if ($recentDuplicate) {
+            return redirect()->route('scan.success', $recentDuplicate->id);
+        }
+
+        // ── Room Occupancy Conflict Handling ────────────────────────────
+        $activeTransactions = $room->transactions()
+            ->whereIn('status', ['open', 'partially_returned'])
+            ->get();
+
+        if ($activeTransactions->isNotEmpty()) {
+            $resolution = $request->input('conflict_resolution', 'end_previous');
+
+            if ($resolution === 'end_previous') {
+                foreach ($activeTransactions as $activeTx) {
+                    $activeTx->update([
+                        'status'      => 'returned',
+                        'returned_at' => now(),
+                        'notes'       => trim(($activeTx->notes ? $activeTx->notes . "\n" : '') . "[QR Scan: Auto-ended upon handover to {$validated['borrower_name']}]"),
+                    ]);
+
+                    foreach ($activeTx->items as $prevItem) {
+                        if ($prevItem->status !== 'returned') {
+                            $prevItem->update([
+                                'quantity_returned' => $prevItem->quantity_borrowed,
+                                'status'            => 'returned',
+                                'returned_at'       => now(),
+                            ]);
+                        }
+                    }
+
+                    $activeTx->load(['room', 'tool', 'items.tool']);
+                    $this->telegram->sendReturnNotification($activeTx);
+                }
+            }
+        }
+
         $transaction = Transaction::create([
             'user_id'        => 1, // system user — no login on scan pages
             'room_id'        => $room->id,

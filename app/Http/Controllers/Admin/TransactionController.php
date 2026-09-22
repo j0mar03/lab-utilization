@@ -99,7 +99,9 @@ class TransactionController extends Controller
      */
     public function create(): View
     {
-        $rooms = Room::orderByRaw("
+        $rooms = Room::with(['transactions' => function ($q) {
+            $q->whereIn('status', ['open', 'partially_returned'])->latest('checked_out_at');
+        }])->orderByRaw("
             CASE 
                 WHEN department = 'Department of Computer and Electronics Engineering Technology' THEN 1
                 WHEN department = 'Department of Office Management and Information Technology' THEN 2
@@ -210,6 +212,43 @@ class TransactionController extends Controller
                 if (! $timeOut && $item['quantity'] > $tool->available_quantity) {
                     return back()->withErrors([
                         'room_tools' => "Only {$tool->available_quantity} unit(s) available for '{$tool->name}' (requested: {$item['quantity']})."
+                    ])->withInput();
+                }
+            }
+
+            // ── CONFLICT DETECTION: Check if room is already occupied ────
+            $activeRoomTx = Transaction::where('room_id', $validated['room_id'])
+                ->whereIn('status', ['open', 'partially_returned'])
+                ->latest('checked_out_at')
+                ->first();
+
+            if ($activeRoomTx && ! $timeOut) {
+                $conflictResolution = $request->input('conflict_resolution', 'end_previous');
+
+                if ($conflictResolution === 'end_previous') {
+                    // Automatically close out previous active session upon handover
+                    $activeRoomTx->update([
+                        'status'      => 'returned',
+                        'returned_at' => $timeIn,
+                        'notes'       => trim(($activeRoomTx->notes ? $activeRoomTx->notes . "\n" : '') . "[Handover: Auto-returned upon handover to {$validated['borrower_name']}]"),
+                    ]);
+
+                    // Return any tools checked out with the previous session
+                    foreach ($activeRoomTx->items as $prevItem) {
+                        if ($prevItem->status !== 'returned') {
+                            $prevItem->update([
+                                'quantity_returned' => $prevItem->quantity_borrowed,
+                                'status'            => 'returned',
+                                'returned_at'       => $timeIn,
+                            ]);
+                        }
+                    }
+
+                    $activeRoomTx->load(['room', 'tool', 'items.tool']);
+                    $this->telegram->sendReturnNotification($activeRoomTx);
+                } elseif ($conflictResolution !== 'allow_concurrent') {
+                    return back()->withErrors([
+                        'room_id' => "Room '{$activeRoomTx->room?->name}' is currently in use by {$activeRoomTx->borrower_name} (checked out at {$activeRoomTx->checked_out_at->format('M d, g:i A')}). Please select 'End previous session' or 'Allow shared occupancy'."
                     ])->withInput();
                 }
             }

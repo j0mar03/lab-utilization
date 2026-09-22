@@ -79,6 +79,29 @@ class Room extends Model
         return $this->hasMany(Transaction::class);
     }
 
+    /**
+     * Get the active / current open transaction for this room if any.
+     */
+    public function currentTransaction(): ?Transaction
+    {
+        if ($this->relationLoaded('transactions')) {
+            return $this->transactions->first(fn ($t) => in_array($t->status, ['open', 'partially_returned']));
+        }
+
+        return $this->transactions()
+            ->whereIn('status', ['open', 'partially_returned'])
+            ->latest('checked_out_at')
+            ->first();
+    }
+
+    /**
+     * Check if this room is currently in use / occupied.
+     */
+    public function isOccupied(): bool
+    {
+        return $this->currentTransaction() !== null;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Scopes
     // ─────────────────────────────────────────────────────────────────────────
