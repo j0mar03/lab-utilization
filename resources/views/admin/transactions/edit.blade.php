@@ -28,6 +28,11 @@
              deptFilter: '{{ addslashes(old('department', $transaction->department ?? '')) }}',
              subjectVal: '{{ addslashes(old('subject', $transaction->subject ?? '')) }}',
              subjectsByDept: {{ Js::from($subjects->groupBy('department')->map(fn($list) => $list->map(fn($s) => ['code' => $s->code, 'name' => $s->name, 'full' => $s->code . ' - ' . $s->name]))) }},
+             selectedRoomId: '{{ old('room_id', $transaction->room_id ?? '') }}',
+             computerLabIds: {{ Js::from($rooms->filter(fn($r) => $r->isComputerLab())->pluck('id')->map(fn($id) => (int)$id)->values()) }},
+             get isSelectedRoomComputerLab() {
+                 return Boolean(this.selectedRoomId && this.computerLabIds.includes(parseInt(this.selectedRoomId)));
+             },
 
              onFacultySelect(event) {
                  const opt = event.target.selectedOptions[0];
@@ -55,8 +60,14 @@
 
              onRoomSelect(event) {
                  const opt = event.target.selectedOptions[0];
+                 this.selectedRoomId = event.target.value;
                  if (opt && opt.dataset.department && !this.selectedDepartment) {
                      this.selectedDepartment = opt.dataset.department;
+                 }
+                 if (!this.isSelectedRoomComputerLab) {
+                     document.querySelectorAll('.software-checkbox').forEach(function(cb) { cb.checked = false; });
+                     const custom = document.getElementById('software_custom');
+                     if (custom) custom.value = '';
                  }
              }
          }">
@@ -112,7 +123,17 @@
                     </span>
                 </div>
 
-                <form method="POST" action="{{ route('admin.transactions.update', $transaction) }}" class="p-6 space-y-6">
+                <form method="POST" action="{{ route('admin.transactions.update', $transaction) }}"
+                      @submit="if (isSelectedRoomComputerLab) {
+                          const checked = Array.from(document.querySelectorAll('.software-checkbox:checked'));
+                          const custom = document.getElementById('software_custom')?.value?.trim();
+                          if (checked.length === 0 && !custom) {
+                              alert('⚠️ Computer Laboratory sessions require at least one software to be selected or specified.');
+                              $event.preventDefault();
+                              return false;
+                          }
+                      }"
+                      class="p-6 space-y-6">
                     @csrf
                     @method('PUT')
 
@@ -130,7 +151,7 @@
                                 If the student selected the wrong room, select the correct laboratory room here:
                             </p>
 
-                            <select name="room_id" id="room_id" required @change="onRoomSelect($event)"
+                            <select name="room_id" id="room_id" required x-model="selectedRoomId" @change="onRoomSelect($event)"
                                     class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold">
                                 <option value="">— Select Room —</option>
                                 @php
@@ -146,7 +167,17 @@
                                             <option value="{{ $room->id }}"
                                                     data-department="{{ $room->department }}"
                                                     {{ $currentRoomId == $room->id ? 'selected' : '' }}>
-                                                {{ $room->name }} ({{ $room->departmentShort() }})
+                                                {{ $room->name }}
+                                                @if ($room->isComputerLab())
+                                                    [💻 Computer Lab]
+                                                @elseif ($room->isEngineeringLab())
+                                                    [⚙️ Engineering Lab]
+                                                @elseif ($room->isLecture())
+                                                    [📖 Lecture]
+                                                @else
+                                                    [🏢 Office]
+                                                @endif
+                                                ({{ $room->departmentShort() }})
                                                 @if ($transaction->room_id == $room->id) ★ (Current) @endif
                                             </option>
                                         @endforeach
@@ -285,43 +316,56 @@
                     </div>
 
                     @if ($transaction->isRoom())
-                        {{-- ── SOFTWARE UTILIZATION CHECKBOXES & CUSTOM ─────────────── --}}
+                        {{-- ── SOFTWARE UTILIZATION CHECKBOXES & CUSTOM (COMPUTER LABS ONLY) ─────────────── --}}
                         @php
                             $currentSoftware = (array) old('software_utilized', $transaction->software_utilized ?? []);
                             $catalogKeys = array_keys($softwareCatalog);
-                            $customSoftwareList = array_diff($currentSoftware, $catalogKeys);
+                            $catalogNames = array_column($softwareCatalog, 'name');
+                            $customSoftwareList = array_diff($currentSoftware, array_merge($catalogKeys, $catalogNames));
                             $customSoftwareStr = implode(', ', $customSoftwareList);
                         @endphp
-                        <div class="border border-purple-200 dark:border-purple-800/50 bg-purple-50/40 dark:bg-purple-950/20 rounded-xl p-4">
-                            <label class="block text-sm font-semibold text-purple-900 dark:text-purple-300 mb-1">
-                                💻 Software Utilized in this Session
-                            </label>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                                Check all specialized computer laboratory software packages used during this session:
-                            </p>
+                        <div x-show="isSelectedRoomComputerLab" x-cloak class="border border-purple-200 dark:border-purple-800/50 bg-purple-50/40 dark:bg-purple-950/20 rounded-xl p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label class="block text-sm font-semibold text-purple-900 dark:text-purple-300">
+                                        💻 Software Utilized in this Session <span class="text-red-500">*</span>
+                                    </label>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Required for computer laboratories: select all software titles used during this class session.
+                                    </p>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-300">
+                                    Required for Computer Lab
+                                </span>
+                            </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                 @foreach ($softwareCatalog as $key => $meta)
-                                    @php $checked = in_array($key, $currentSoftware); @endphp
+                                    @php $checked = in_array($key, $currentSoftware) || in_array($meta['name'], $currentSoftware); @endphp
                                     <label class="flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition
                                         {{ $checked ? 'bg-purple-100/80 border-purple-300 dark:bg-purple-900/40 dark:border-purple-700 text-purple-900 dark:text-purple-200' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-purple-300' }}">
-                                        <input type="checkbox" name="software_utilized[]" value="{{ $key }}"
+                                        <input type="checkbox" name="software_utilized[]" value="{{ $meta['name'] }}"
+                                               :disabled="!isSelectedRoomComputerLab"
                                                {{ $checked ? 'checked' : '' }}
-                                               class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
+                                               class="software-checkbox rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
                                         <span class="font-medium truncate">{{ $meta['icon'] }} {{ $meta['name'] }}</span>
                                     </label>
                                 @endforeach
                             </div>
 
-                            <div class="mt-3">
+                            <div class="pt-1">
                                 <label for="software_custom" class="block text-xs font-medium text-purple-800 dark:text-purple-300 mb-1">
                                     Other / Specific Software Titles (Comma-separated)
                                 </label>
                                 <input type="text" name="software_custom" id="software_custom"
+                                       :disabled="!isSelectedRoomComputerLab"
                                        value="{{ old('software_custom', $customSoftwareStr) }}"
                                        placeholder="e.g. Adobe Animate, Packet Tracer, Blender"
                                        class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-xs py-1.5 px-3">
                             </div>
+                            @error('software_utilized')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
                         </div>
                     @endif
 

@@ -44,6 +44,33 @@ class Room extends Model
         };
     }
 
+    public const COMPUTER_LABS = [
+        'LAB 104',
+        'LAB 105',
+        'LAB 109C',
+        'LAB 203',
+        'LAB 204',
+        'LAB 205',
+    ];
+
+    public const ENGINEERING_LABS = [
+        'LAB 109',
+        'LAB 109B',
+        'LAB 208',
+    ];
+
+    public function isComputerLab(): bool
+    {
+        $normalized = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $this->name)));
+        return in_array($normalized, self::COMPUTER_LABS);
+    }
+
+    public function isEngineeringLab(): bool
+    {
+        $normalized = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $this->name)));
+        return in_array($normalized, self::ENGINEERING_LABS);
+    }
+
     public function isOffice(): bool
     {
         return str_contains(strtoupper($this->name), 'OFFICE');
@@ -51,12 +78,12 @@ class Room extends Model
 
     public function isLab(): bool
     {
-        return str_starts_with($this->name, 'LAB') && !$this->isOffice();
+        return str_starts_with(strtoupper($this->name), 'LAB') && !$this->isOffice();
     }
 
     public function isLecture(): bool
     {
-        return str_starts_with($this->name, 'LEC');
+        return str_starts_with(strtoupper($this->name), 'LEC');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -142,6 +169,16 @@ class Room extends Model
     public function scopeLaboratories($query)
     {
         return $query->where('name', 'LIKE', 'LAB%')->where('name', 'NOT LIKE', '%Office%');
+    }
+
+    public function scopeComputerLabs($query)
+    {
+        return $query->whereIn('name', self::COMPUTER_LABS);
+    }
+
+    public function scopeEngineeringLabs($query)
+    {
+        return $query->whereIn('name', self::ENGINEERING_LABS);
     }
 
     public function scopeLectures($query)

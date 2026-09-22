@@ -563,7 +563,9 @@
             {{-- ═══════════════════════════════════════════════════════════════ --}}
             {{-- SECTION 4: COMPUTER LAB SOFTWARE UTILIZATION                    --}}
             {{-- ═══════════════════════════════════════════════════════════════ --}}
-            <div class="space-y-4">
+            {{-- SECTION 4: COMPUTER LAB SOFTWARE & APPLICATIONS UTILIZATION     --}}
+            {{-- ═══════════════════════════════════════════════════════════════ --}}
+            <div class="space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700 gap-2">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -571,14 +573,190 @@
                             <span>Computer Laboratory Software & Applications Utilization</span>
                         </h3>
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                            Tracking software suites deployed and utilized during computer lab sessions for curriculum delivery & OPCR compliance
+                            Monitoring specialized software suites across Computer Labs (LAB 104, 105, 109C, 203, 204, 205) for curriculum compliance & OPCR reporting
                         </p>
                     </div>
-                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 self-start sm:self-auto">
-                        {{ $totalSoftwareRoomSessions }} Software Sessions ({{ $softwareAdoptionRate }}% Adoption)
-                    </span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-bold px-3 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200">
+                            💻 Comp Lab Compliance: {{ $compLabComplianceRate }}%
+                        </span>
+                    </div>
                 </div>
 
+                {{-- Key Compliance KPI Cards --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {{-- 1. Comp Lab Compliance Rate --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-purple-200 dark:border-purple-800/60 p-4">
+                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span class="font-semibold uppercase tracking-wider">Comp Lab Compliance</span>
+                            <span class="text-base">🎯</span>
+                        </div>
+                        <div class="mt-2 flex items-baseline gap-2">
+                            <span class="text-3xl font-black text-purple-600 dark:text-purple-400">{{ $compLabComplianceRate }}%</span>
+                            <span class="text-xs text-gray-500">recorded</span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div class="bg-purple-600 h-1.5 rounded-full transition-all duration-500" style="width: {{ min(100, $compLabComplianceRate) }}%"></div>
+                        </div>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+                            {{ $compLabSoftwareSessions }} of {{ $compLabTotalSessions }} comp lab sessions specified software
+                        </p>
+                    </div>
+
+                    {{-- 2. Total Software Sessions --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span class="font-semibold uppercase tracking-wider">Software Sessions</span>
+                            <span class="text-base">📑</span>
+                        </div>
+                        <div class="mt-2 flex items-baseline gap-2">
+                            <span class="text-3xl font-black text-gray-900 dark:text-gray-100">{{ $totalSoftwareRoomSessions }}</span>
+                            <span class="text-xs text-gray-500">sessions</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-3.5">
+                            {{ $softwareAdoptionRate }}% across all college room sessions
+                        </p>
+                    </div>
+
+                    {{-- 3. Unique Software Packages --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span class="font-semibold uppercase tracking-wider">Active Software Titles</span>
+                            <span class="text-base">🚀</span>
+                        </div>
+                        <div class="mt-2 flex items-baseline gap-2">
+                            <span class="text-3xl font-black text-indigo-600 dark:text-indigo-400">{{ count($softwareCounts) }}</span>
+                            <span class="text-xs text-gray-500">packages</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-3.5">
+                            AutoCAD, Cisco, VS Code, Office, custom tools
+                        </p>
+                    </div>
+
+                    {{-- 4. Computer Lab Rooms Monitored --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span class="font-semibold uppercase tracking-wider">Dedicated Comp Labs</span>
+                            <span class="text-base">🖥️</span>
+                        </div>
+                        <div class="mt-2 flex items-baseline gap-2">
+                            <span class="text-3xl font-black text-emerald-600 dark:text-emerald-400">{{ count($compLabMatrix) }}</span>
+                            <span class="text-xs text-gray-500">rooms</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-3.5">
+                            Excludes DEMET eng'g labs (109, 109B, 208)
+                        </p>
+                    </div>
+                </div>
+
+                {{-- Computer Laboratories Compliance & Usage Table --}}
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="px-5 py-3.5 bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base">🖥️</span>
+                            <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">
+                                Computer Laboratories Utilization & Software Compliance Matrix
+                            </h4>
+                        </div>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                            OPCR Target: 100% Software Utilization Tracking
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                                    <th class="py-3 px-4">Computer Lab</th>
+                                    <th class="py-3 px-3 text-center">Total Sessions</th>
+                                    <th class="py-3 px-3 text-center">Software Sessions</th>
+                                    <th class="py-3 px-3 text-center">Compliance</th>
+                                    <th class="py-3 px-3 text-right">Total Hours</th>
+                                    <th class="py-3 px-4">Top Software Packages Utilized</th>
+                                    <th class="py-3 px-4">Curriculum Subjects Taught</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700/60">
+                                @forelse ($compLabMatrix as $row)
+                                    <tr class="hover:bg-purple-50/30 dark:hover:bg-purple-950/20 transition">
+                                        <td class="py-3 px-4 font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                                            <div class="flex items-center gap-2">
+                                                <span class="p-1 rounded bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">💻</span>
+                                                <div>
+                                                    <div>{{ $row['room']->name }}</div>
+                                                    <span class="text-[10px] font-normal text-gray-500 dark:text-gray-400">
+                                                        {{ $row['room']->departmentShort() }} • {{ $row['room']->location }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-3 text-center font-semibold text-gray-800 dark:text-gray-200">
+                                            {{ $row['total_sessions'] }}
+                                        </td>
+                                        <td class="py-3 px-3 text-center font-bold text-purple-700 dark:text-purple-300">
+                                            {{ $row['software_sessions'] }}
+                                        </td>
+                                        <td class="py-3 px-3 text-center">
+                                            @if ($row['total_sessions'] === 0)
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-500">No activity</span>
+                                            @elseif ($row['compliance_rate'] >= 90)
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
+                                                    {{ $row['compliance_rate'] }}% ✓
+                                                </span>
+                                            @elseif ($row['compliance_rate'] >= 60)
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
+                                                    {{ $row['compliance_rate'] }}% ⚠️
+                                                </span>
+                                            @else
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300">
+                                                    {{ $row['compliance_rate'] }}% 🚨
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-3 text-right font-mono font-medium text-gray-700 dark:text-gray-300">
+                                            {{ number_format($row['total_hours'], 1) }}h
+                                        </td>
+                                        <td class="py-3 px-4">
+                                            @if (empty($row['top_software']))
+                                                <span class="text-[11px] text-gray-400 italic">None logged</span>
+                                            @else
+                                                <div class="flex flex-wrap gap-1">
+                                                    @foreach ($row['top_software'] as $sName => $sCount)
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 text-[10px] font-medium border border-purple-200 dark:border-purple-800">
+                                                            <span>{{ $sName }}</span>
+                                                            <strong class="text-[9px] bg-purple-200 dark:bg-purple-900 px-1 rounded-full">{{ $sCount }}</strong>
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-4">
+                                            @if (empty($row['top_subjects']))
+                                                <span class="text-[11px] text-gray-400 italic">—</span>
+                                            @else
+                                                <div class="space-y-0.5">
+                                                    @foreach ($row['top_subjects'] as $subj)
+                                                        <div class="text-[11px] text-gray-700 dark:text-gray-300 truncate max-w-[200px]" title="{{ $subj }}">
+                                                            • {{ $subj }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="py-8 text-center text-gray-400">
+                                            No computer laboratory sessions recorded in this period.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {{-- Detailed Software Charts & Catalog Breakdown --}}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {{-- 1. Software Utilization Chart --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex flex-col">
@@ -613,6 +791,8 @@
                                 @php
                                     $sessionCount = $softwareCounts[$sw['name']] ?? 0;
                                     $deptBreakdown = $softwareDeptCounts[$sw['name']] ?? [];
+                                    $swHours = isset($softwareMinutes[$sw['name']]) ? round($softwareMinutes[$sw['name']] / 60, 1) : 0;
+                                    $roomsBreakdown = $softwareRoomCounts[$sw['name']] ?? [];
                                 @endphp
                                 <div class="py-3 first:pt-0 last:pb-0">
                                     <div class="flex items-start justify-between gap-2">
@@ -627,7 +807,7 @@
                                         </div>
                                         <div class="text-right shrink-0">
                                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold {{ $sessionCount > 0 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' }}">
-                                                {{ $sessionCount }} session{{ $sessionCount === 1 ? '' : 's' }}
+                                                {{ $sessionCount }} session{{ $sessionCount === 1 ? '' : 's' }} ({{ $swHours }}h)
                                             </span>
                                         </div>
                                     </div>
@@ -641,10 +821,19 @@
                                         @endforeach
 
                                         @if (!empty($deptBreakdown))
-                                            <span class="text-[10px] text-gray-400 ml-1">| Utilized by:</span>
+                                            <span class="text-[10px] text-gray-400 ml-1">| By Dept:</span>
                                             @foreach ($deptBreakdown as $dShort => $dCount)
                                                 <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800">
                                                     {{ $dShort }}: {{ $dCount }}
+                                                </span>
+                                            @endforeach
+                                        @endif
+
+                                        @if (!empty($roomsBreakdown))
+                                            <span class="text-[10px] text-gray-400 ml-1">| In:</span>
+                                            @foreach (array_slice($roomsBreakdown, 0, 3) as $rName => $rCount)
+                                                <span class="text-[10px] px-1.5 py-0.2 rounded bg-gray-50 dark:bg-gray-750 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                                                    {{ $rName }} ({{ $rCount }})
                                                 </span>
                                             @endforeach
                                         @endif
@@ -655,6 +844,9 @@
                             {{-- Any custom software logged --}}
                             @foreach ($softwareCounts as $swName => $swCount)
                                 @if (!isset($softwareCatalog[$swName]))
+                                    @php
+                                        $swHours = isset($softwareMinutes[$swName]) ? round($softwareMinutes[$swName] / 60, 1) : 0;
+                                    @endphp
                                     <div class="py-3">
                                         <div class="flex items-start justify-between gap-2">
                                             <div>
@@ -665,7 +857,7 @@
                                                 </span>
                                             </div>
                                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-                                                {{ $swCount }} session{{ $swCount === 1 ? '' : 's' }}
+                                                {{ $swCount }} session{{ $swCount === 1 ? '' : 's' }} ({{ $swHours }}h)
                                             </span>
                                         </div>
                                     </div>

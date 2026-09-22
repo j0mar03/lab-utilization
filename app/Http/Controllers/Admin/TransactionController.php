@@ -165,16 +165,30 @@ class TransactionController extends Controller
                 'subject.required'       => 'Please enter the course subject or purpose.',
             ]);
 
-            $softwareUtilized = (array) $request->input('software_utilized', []);
-            if ($request->filled('software_custom')) {
-                $customItems = array_filter(array_map('trim', explode(',', $request->input('software_custom'))));
-                foreach ($customItems as $cItem) {
-                    if (!in_array($cItem, $softwareUtilized)) {
-                        $softwareUtilized[] = $cItem;
+            $room = Room::findOrFail($validated['room_id']);
+
+            // Require software utilized if and only if room is a Computer Laboratory
+            if ($room->isComputerLab()) {
+                $softwareUtilized = (array) $request->input('software_utilized', []);
+                if ($request->filled('software_custom')) {
+                    $customItems = array_filter(array_map('trim', explode(',', $request->input('software_custom'))));
+                    foreach ($customItems as $cItem) {
+                        if (!in_array($cItem, $softwareUtilized)) {
+                            $softwareUtilized[] = $cItem;
+                        }
                     }
                 }
+                $softwareUtilized = array_values(array_unique(array_filter($softwareUtilized)));
+
+                if (empty($softwareUtilized)) {
+                    return back()->withErrors([
+                        'software_utilized' => 'Software utilized is required when checking out Computer Laboratory ' . $room->name . '.',
+                    ])->withInput();
+                }
+            } else {
+                // Non-computer laboratory (Engineering lab, lecture room, office): software is not applicable
+                $softwareUtilized = null;
             }
-            $softwareUtilized = !empty($softwareUtilized) ? array_values(array_unique($softwareUtilized)) : null;
 
             // ── OPTIONAL TOOLS & ACCESSORIES BORROWED WITH ROOM ───────
             $rawRoomTools = $request->input('room_tools', $request->input('tools', []));
@@ -551,16 +565,28 @@ class TransactionController extends Controller
                 'notes'               => ['nullable', 'string', 'max:1000'],
             ]);
 
-            $softwareUtilized = (array) $request->input('software_utilized', []);
-            if ($request->filled('software_custom')) {
-                $customItems = array_filter(array_map('trim', explode(',', $request->input('software_custom'))));
-                foreach ($customItems as $cItem) {
-                    if (!in_array($cItem, $softwareUtilized)) {
-                        $softwareUtilized[] = $cItem;
+            $targetRoom = Room::findOrFail($validated['room_id']);
+
+            if ($targetRoom->isComputerLab()) {
+                $softwareUtilized = (array) $request->input('software_utilized', []);
+                if ($request->filled('software_custom')) {
+                    $customItems = array_filter(array_map('trim', explode(',', $request->input('software_custom'))));
+                    foreach ($customItems as $cItem) {
+                        if (!in_array($cItem, $softwareUtilized)) {
+                            $softwareUtilized[] = $cItem;
+                        }
                     }
                 }
+                $softwareUtilized = array_values(array_unique(array_filter($softwareUtilized)));
+
+                if (empty($softwareUtilized)) {
+                    return back()->withErrors([
+                        'software_utilized' => 'Software utilized is required for Computer Laboratory ' . $targetRoom->name . '.',
+                    ])->withInput();
+                }
+            } else {
+                $softwareUtilized = null;
             }
-            $softwareUtilized = !empty($softwareUtilized) ? array_values(array_unique($softwareUtilized)) : null;
 
             $timeIn   = Carbon::parse($validated['checked_out_at']);
             $timeOut  = $request->filled('returned_at') ? Carbon::parse($request->input('returned_at')) : null;

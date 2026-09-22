@@ -351,20 +351,37 @@ class ReportController extends Controller
         }
         usort($subjectAudit, fn ($a, $b) => $b['total_hours'] <=> $a['total_hours']);
 
-        // ── 8. Software & Applications Utilization (Filtered) ────────────────
+        // ── 8. Software & Applications Utilization (Computer Labs Focus) ─────
+        $compLabTransactions = $filteredRoomTransactions->filter(fn ($stx) => $stx->room && $stx->room->isComputerLab());
+        $compLabTotalSessions = $compLabTransactions->count();
+        $compLabSoftwareSessions = $compLabTransactions->filter(fn ($stx) => $stx->hasSoftwareUtilized())->count();
+        $compLabComplianceRate = $compLabTotalSessions > 0
+            ? round(($compLabSoftwareSessions / $compLabTotalSessions) * 100, 1)
+            : 100.0;
+
         $totalSoftwareRoomSessions = 0;
         $softwareCounts = [];
         $softwareDeptCounts = [];
+        $softwareRoomCounts = [];
+        $softwareSubjectCounts = [];
+        $softwareMinutes = [];
 
         foreach ($filteredRoomTransactions as $stx) {
             if ($stx->hasSoftwareUtilized()) {
                 $totalSoftwareRoomSessions++;
                 $deptShort = $stx->departmentShort() ?: 'General';
+                $roomName = $stx->room?->name ?: 'Unknown Room';
+                $subj = $stx->subject ?: 'General';
+                $mins = $calcMinutes($stx);
+
                 foreach ((array) $stx->software_utilized as $suite) {
                     $suite = trim($suite);
                     if ($suite === '') continue;
                     $softwareCounts[$suite] = ($softwareCounts[$suite] ?? 0) + 1;
                     $softwareDeptCounts[$suite][$deptShort] = ($softwareDeptCounts[$suite][$deptShort] ?? 0) + 1;
+                    $softwareRoomCounts[$suite][$roomName] = ($softwareRoomCounts[$suite][$roomName] ?? 0) + 1;
+                    $softwareSubjectCounts[$suite][$subj] = ($softwareSubjectCounts[$suite][$subj] ?? 0) + 1;
+                    $softwareMinutes[$suite] = ($softwareMinutes[$suite] ?? 0) + $mins;
                 }
             }
         }
@@ -378,6 +395,47 @@ class ReportController extends Controller
             : 0;
 
         $softwareCatalog = Transaction::SOFTWARE_CATALOG;
+
+        // Computer Labs Specific Audit Matrix
+        $compLabMatrix = [];
+        $computerLabRooms = Room::whereIn('name', Room::COMPUTER_LABS)->orderBy('name')->get();
+
+        foreach ($computerLabRooms as $clRoom) {
+            $clTxs = $compLabTransactions->filter(fn ($tx) => $tx->room_id === $clRoom->id);
+            $clTotal = $clTxs->count();
+            $clWithSoftware = $clTxs->filter(fn ($tx) => $tx->hasSoftwareUtilized())->count();
+            $clMins = 0;
+            $clSwCounts = [];
+            $clSubjCounts = [];
+
+            foreach ($clTxs as $tx) {
+                $clMins += $calcMinutes($tx);
+                if ($tx->hasSoftwareUtilized()) {
+                    foreach ((array) $tx->software_utilized as $s) {
+                        $s = trim($s);
+                        if ($s) {
+                            $clSwCounts[$s] = ($clSwCounts[$s] ?? 0) + 1;
+                        }
+                    }
+                }
+                if ($tx->subject) {
+                    $clSubjCounts[$tx->subject] = ($clSubjCounts[$tx->subject] ?? 0) + 1;
+                }
+            }
+
+            arsort($clSwCounts);
+            arsort($clSubjCounts);
+
+            $compLabMatrix[] = [
+                'room'              => $clRoom,
+                'total_sessions'    => $clTotal,
+                'software_sessions' => $clWithSoftware,
+                'compliance_rate'   => $clTotal > 0 ? round(($clWithSoftware / $clTotal) * 100, 1) : 100.0,
+                'total_hours'       => round($clMins / 60, 1),
+                'top_software'      => array_slice($clSwCounts, 0, 4, true),
+                'top_subjects'      => array_slice(array_keys($clSubjCounts), 0, 3),
+            ];
+        }
 
         // ── 9. Department Utilization Comparison (DECET, DOMIT, DEMET) ───────
         $allDeptNames = ['DECET', 'DOMIT', 'DEMET'];
@@ -557,8 +615,15 @@ class ReportController extends Controller
             'toolCatLabels',
             'toolCatData',
             'totalSoftwareRoomSessions',
+            'compLabTotalSessions',
+            'compLabSoftwareSessions',
+            'compLabComplianceRate',
+            'compLabMatrix',
             'softwareCounts',
             'softwareDeptCounts',
+            'softwareRoomCounts',
+            'softwareSubjectCounts',
+            'softwareMinutes',
             'softwareChartLabels',
             'softwareChartData',
             'softwareAdoptionRate',

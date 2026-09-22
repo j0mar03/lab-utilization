@@ -54,8 +54,9 @@ class ScanController extends Controller
 
         $faculties = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
         $subjects  = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
+        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
 
-        return view('scan.room', compact('room', 'openTransactions', 'faculties', 'subjects'));
+        return view('scan.room', compact('room', 'openTransactions', 'faculties', 'subjects', 'softwareCatalog'));
     }
 
     /**
@@ -117,18 +118,39 @@ class ScanController extends Controller
             }
         }
 
+        $softwareUtilized = null;
+        if ($room->isComputerLab()) {
+            $softwareList = (array) $request->input('software_utilized', []);
+            if ($request->filled('software_custom')) {
+                $customItems = array_filter(array_map('trim', explode(',', $request->input('software_custom'))));
+                foreach ($customItems as $cItem) {
+                    if (!in_array($cItem, $softwareList)) {
+                        $softwareList[] = $cItem;
+                    }
+                }
+            }
+            $softwareUtilized = array_values(array_unique(array_filter($softwareList)));
+
+            if (empty($softwareUtilized)) {
+                return back()->withErrors([
+                    'software_utilized' => 'Software utilized is required when checking out Computer Laboratory ' . $room->name . '.',
+                ])->withInput();
+            }
+        }
+
         $transaction = Transaction::create([
-            'user_id'        => 1, // system user — no login on scan pages
-            'room_id'        => $room->id,
-            'tool_id'        => null,
-            'quantity'       => 1,
-            'borrower_name'  => $validated['borrower_name'],
-            'borrower_email' => $validated['borrower_email'] ?? null,
-            'subject'        => $validated['subject'],
-            'checked_out_at' => now(),
-            'status'         => 'open',
-            'notes'          => $validated['notes'] ?? null,
-            'source'         => 'qr_scan',
+            'user_id'           => 1, // system user — no login on scan pages
+            'room_id'           => $room->id,
+            'tool_id'           => null,
+            'quantity'          => 1,
+            'borrower_name'     => $validated['borrower_name'],
+            'borrower_email'    => $validated['borrower_email'] ?? null,
+            'subject'           => $validated['subject'],
+            'software_utilized' => $softwareUtilized,
+            'checked_out_at'    => now(),
+            'status'            => 'open',
+            'notes'             => $validated['notes'] ?? null,
+            'source'            => 'qr_scan',
         ]);
 
         $transaction->load('room');

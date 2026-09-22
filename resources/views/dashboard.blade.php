@@ -227,10 +227,11 @@
                      filter: 'all',
                      floor: 'all',
                      search: '',
-                     matchesFilter(isOccupied, isLab, isLecture, isOffice, location, haystack) {
+                     matchesFilter(isOccupied, isComputerLab, isEngineeringLab, isLecture, isOffice, location, haystack) {
                          if (this.filter === 'in_use' && !isOccupied) return false;
                          if (this.filter === 'available' && isOccupied) return false;
-                         if (this.filter === 'labs' && !isLab) return false;
+                         if (this.filter === 'comp_labs' && !isComputerLab) return false;
+                         if (this.filter === 'eng_labs' && !isEngineeringLab) return false;
                          if (this.filter === 'lectures' && !isLecture) return false;
                          if (this.filter === 'offices' && !isOffice) return false;
                          if (this.floor !== 'all' && location !== this.floor) return false;
@@ -314,11 +315,19 @@
                         </button>
 
                         <button type="button"
-                                @click="filter = 'labs'"
-                                :class="filter === 'labs' ? 'bg-blue-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                @click="filter = 'comp_labs'"
+                                :class="filter === 'comp_labs' ? 'bg-purple-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
                                 class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
-                            <span>🔬 Computer Labs</span>
-                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $allRooms->filter(fn($r) => $r->isLab())->count() }}</span>
+                            <span>💻 Computer Labs</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $allRooms->filter(fn($r) => $r->isComputerLab())->count() }}</span>
+                        </button>
+
+                        <button type="button"
+                                @click="filter = 'eng_labs'"
+                                :class="filter === 'eng_labs' ? 'bg-amber-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <span>⚙️ Engineering Labs</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $allRooms->filter(fn($r) => $r->isEngineeringLab())->count() }}</span>
                         </button>
 
                         <button type="button"
@@ -331,7 +340,7 @@
 
                         <button type="button"
                                 @click="filter = 'offices'"
-                                :class="filter === 'offices' ? 'bg-purple-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                :class="filter === 'offices' ? 'bg-blue-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
                                 class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
                             <span>🏢 Lab Offices</span>
                             <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $allRooms->filter(fn($r) => $r->isOffice())->count() }}</span>
@@ -352,7 +361,7 @@
                                 ($isOcc ? ($activeTx->borrower_name . ' ' . $activeTx->subject . ' ' . $activeTx->softwareSummary() . ' ' . $activeTx->items->pluck('tool.name')->join(' ')) : 'vacant available');
                         @endphp
 
-                        <div x-show="matchesFilter({{ $isOcc ? 'true' : 'false' }}, {{ $room->isLab() ? 'true' : 'false' }}, {{ $room->isLecture() ? 'true' : 'false' }}, {{ $room->isOffice() ? 'true' : 'false' }}, '{{ addslashes($room->location ?? '') }}', '{{ addslashes(strtolower($searchHaystack)) }}')"
+                        <div x-show="matchesFilter({{ $isOcc ? 'true' : 'false' }}, {{ $room->isComputerLab() ? 'true' : 'false' }}, {{ $room->isEngineeringLab() ? 'true' : 'false' }}, {{ $room->isLecture() ? 'true' : 'false' }}, {{ $room->isOffice() ? 'true' : 'false' }}, '{{ addslashes($room->location ?? '') }}', '{{ addslashes(strtolower($searchHaystack)) }}')"
                              x-transition:enter="transition ease-out duration-150"
                              x-transition:enter-start="opacity-0 scale-95"
                              x-transition:enter-end="opacity-100 scale-100"
@@ -398,9 +407,23 @@
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                                         {{ $room->departmentShort() }}
                                     </span>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                        {{ $room->isLab() ? '🔬 Lab' : ($room->isLecture() ? '📖 Lecture' : '🏢 Office') }}
-                                    </span>
+                                    @if ($room->isComputerLab())
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                            💻 Computer Lab
+                                        </span>
+                                    @elseif ($room->isEngineeringLab())
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                            ⚙️ Engineering Lab
+                                        </span>
+                                    @elseif ($room->isLecture())
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                            📖 Lecture
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                            🏢 Office
+                                        </span>
+                                    @endif
                                     @if ($room->has_wifi)
                                         <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300" title="WiFi Available">
                                             📶 WiFi

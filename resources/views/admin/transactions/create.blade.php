@@ -46,6 +46,11 @@
                      'transaction_id' => $r->currentTransaction()?->id,
                  ]
              ])) }},
+             computerLabIds: {{ Js::from($rooms->filter(fn($r) => $r->isComputerLab())->pluck('id')->map(fn($id) => (int)$id)) }},
+             get isSelectedRoomComputerLab() {
+                 if (!this.selectedRoomId) return false;
+                 return Boolean(this.computerLabIds.includes(parseInt(this.selectedRoomId)));
+             },
              get currentOccupancy() {
                  return this.selectedRoomId && this.occupiedRooms[this.selectedRoomId] ? this.occupiedRooms[this.selectedRoomId] : null;
              },
@@ -199,6 +204,11 @@
                          this.deptFilter = opt.dataset.department;
                      }
                  }
+                 if (!this.isSelectedRoomComputerLab) {
+                     document.querySelectorAll('.software-checkbox').forEach(function(cb) { cb.checked = false; });
+                     const customSw = document.getElementById('software_custom');
+                     if (customSw) customSw.value = '';
+                 }
              }
          }">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8 space-y-6">
@@ -220,7 +230,17 @@
             </div>
 
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                <form method="POST" action="{{ route('admin.transactions.store') }}" class="space-y-6">
+                <form method="POST" action="{{ route('admin.transactions.store') }}"
+                      @submit="if (type === 'room' && isSelectedRoomComputerLab) {
+                          const checked = Array.from(document.querySelectorAll('.software-checkbox:checked'));
+                          const custom = (document.getElementById('software_custom')?.value || '').trim();
+                          if (checked.length === 0 && !custom) {
+                              $event.preventDefault();
+                              alert('Software utilized is required when checking out Computer Laboratory ' + (occupiedRooms[selectedRoomId]?.name || ''));
+                              return false;
+                          }
+                      }"
+                      class="space-y-6">
                     @csrf
                     <input type="hidden" name="type" :value="type">
                     <input type="hidden" name="borrower_mode" :value="borrowerMode">
@@ -327,7 +347,7 @@
                                             <option value="{{ $r->id }}"
                                                     data-department="{{ $r->department }}"
                                                     {{ old('room_id', request('room_id')) == $r->id ? 'selected' : '' }}>
-                                                {{ $isOcc ? '🔴 [IN USE: ' . Str::limit($curr?->borrower_name ?? 'Active', 18) . '] ' : ($r->isLab() ? '🔬 ' : '📖 ') }}{{ $r->name }} — {{ $r->isLab() ? 'Laboratory' : 'Lecture' }}{{ $isOcc ? ' (Occupied)' : ' (Available)' }}
+                                                {{ $isOcc ? '🔴 [IN USE: ' . Str::limit($curr?->borrower_name ?? 'Active', 18) . '] ' : ($r->isComputerLab() ? '💻 ' : ($r->isEngineeringLab() ? '⚙️ ' : ($r->isOffice() ? '🏢 ' : '📖 '))) }}{{ $r->name }} — {{ $r->isComputerLab() ? 'Computer Lab' : ($r->isEngineeringLab() ? 'Engineering Lab' : ($r->isOffice() ? 'Office' : 'Lecture')) }}{{ $isOcc ? ' (Occupied)' : ' (Available)' }}
                                             </option>
                                         @endforeach
                                     </optgroup>
@@ -418,17 +438,24 @@
                             <x-input-error class="mt-1" :messages="$errors->get('subject')" />
                         </div>
 
-                        {{-- ── Software Utilized in Computer Laboratories ────── --}}
-                        <div class="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 space-y-3">
+                        {{-- ── Software Utilized in Computer Laboratories (Required for Computer Labs) ────── --}}
+                        <div x-show="isSelectedRoomComputerLab"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             class="p-4 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border-2 border-purple-300 dark:border-purple-700 space-y-3">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-base">💻</span>
+                                    <span class="text-xl">💻</span>
                                     <div>
-                                        <h4 class="text-xs font-bold uppercase tracking-wider text-purple-900 dark:text-purple-300">
-                                            Software & Applications Utilized (Optional)
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-purple-900 dark:text-purple-300 flex items-center gap-2">
+                                            <span>Software & Applications Utilized</span>
+                                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 font-bold">
+                                                * Required for Computer Labs
+                                            </span>
                                         </h4>
-                                        <p class="text-xs text-purple-700/80 dark:text-purple-400">
-                                            For computer lab sessions, select the software tools utilized for research & OPCR reporting.
+                                        <p class="text-xs text-purple-700/90 dark:text-purple-400">
+                                            Required for Computer Laboratory sessions. Select the software tools utilized for curriculum delivery, research, and OPCR report generation.
                                         </p>
                                     </div>
                                 </div>
@@ -440,9 +467,9 @@
                                         <input type="checkbox"
                                                name="software_utilized[]"
                                                value="{{ $sw['name'] }}"
-                                               :disabled="type !== 'room'"
+                                               :disabled="type !== 'room' || !isSelectedRoomComputerLab"
                                                {{ is_array(old('software_utilized')) && in_array($sw['name'], old('software_utilized')) ? 'checked' : '' }}
-                                               class="mt-1 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                               class="software-checkbox mt-1 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
                                         <div class="text-xs">
                                             <span class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                                                 <span>{{ $sw['icon'] }}</span>
@@ -458,16 +485,18 @@
 
                             <div class="pt-1">
                                 <label for="software_custom" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Other / Specialized Software (Optional):
+                                    Other / Specialized Software (Comma-separated):
                                 </label>
                                 <input type="text"
                                        id="software_custom"
                                        name="software_custom"
-                                       :disabled="type !== 'room'"
+                                       :disabled="type !== 'room' || !isSelectedRoomComputerLab"
                                        value="{{ old('software_custom') }}"
-                                       placeholder="e.g., Blender, Proteus 8, Wireshark, Quartus Prime (separate with comma)"
+                                       placeholder="e.g., Blender, Proteus 8, Wireshark, Quartus Prime"
                                        class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg shadow-sm text-xs">
                             </div>
+
+                            <x-input-error class="mt-2" :messages="$errors->get('software_utilized')" />
                         </div>
 
                         {{-- ── Tools & Accessories Borrowed with this Room ──────────────── --}}

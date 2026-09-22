@@ -61,7 +61,7 @@
             <h2 class="font-bold text-gray-800 text-lg mb-4">Check Out Room</h2>
 
             <form method="POST" action="{{ route('scan.room.checkout', $room->id) }}"
-                  onsubmit="const btn = this.querySelector('button[type=submit]'); if (btn) { btn.disabled = true; btn.innerText = '⏳ Checking Out...'; }">
+                  onsubmit="return validateScanForm(this)">
                 @csrf
 
                 {{-- Room Occupancy Conflict Alert & Handover Options --}}
@@ -158,6 +158,62 @@
                            required>
                 </div>
 
+                @if ($room->isComputerLab())
+                    {{-- Software Utilized (Required for Computer Labs) --}}
+                    <div class="mb-5 p-4 rounded-xl bg-purple-50 border-2 border-purple-200">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-sm font-bold text-purple-950 flex items-center gap-1.5">
+                                <span>💻</span>
+                                <span>Software & Applications Utilized</span>
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                Required for {{ $room->name }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-purple-700 mb-3 leading-tight">
+                            Select the specialized software tools used during this computer laboratory session:
+                        </p>
+
+                        <div class="space-y-2">
+                            @foreach ($softwareCatalog as $swKey => $sw)
+                                <label class="flex items-start gap-3 p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-100/50 cursor-pointer transition">
+                                    <input type="checkbox"
+                                           name="software_utilized[]"
+                                           value="{{ $sw['name'] }}"
+                                           {{ is_array(old('software_utilized')) && in_array($sw['name'], old('software_utilized')) ? 'checked' : '' }}
+                                           class="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <div class="text-xs">
+                                        <span class="font-bold text-gray-900 flex items-center gap-1">
+                                            <span>{{ $sw['icon'] }}</span>
+                                            <span>{{ $sw['name'] }}</span>
+                                        </span>
+                                        <p class="text-[11px] text-gray-500 mt-0.5">
+                                            {{ $sw['description'] }}
+                                        </p>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <div class="mt-3">
+                            <label for="software_custom" class="block text-xs font-semibold text-purple-900 mb-1">
+                                Other / Specific Software:
+                            </label>
+                            <input type="text"
+                                   id="software_custom"
+                                   name="software_custom"
+                                   value="{{ old('software_custom') }}"
+                                   placeholder="e.g., Blender, Proteus, Quartus Prime"
+                                   class="w-full text-xs border-gray-300 rounded-xl px-3 py-2 focus:ring-purple-500 focus:border-purple-500 bg-white">
+                        </div>
+
+                        @error('software_utilized')
+                            <p class="mt-2 text-xs font-semibold text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endif
+
                 {{-- Notes (optional) --}}
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -191,7 +247,7 @@
     </div>
 
     <script>
-        const scanSubjectsByDept = @json($subjects->groupBy('department')->map(fn($list) => $list->map(fn($s) => ['code' => $s->code, 'name' => $s->name, 'full' => $s->code . ' - ' . $s->name, 'year_level' => $s->year_level])));
+        const scanSubjectsByDept = {{ \Illuminate\Support\Js::from($subjects->groupBy('department')->map(fn($list) => $list->map(fn($s) => ['code' => $s->code, 'name' => $s->name, 'full' => $s->code . ' - ' . $s->name, 'year_level' => $s->year_level]))) }};
 
         function renderScanSubjects(deptFilter) {
             const sel = document.getElementById('subject_select');
@@ -273,6 +329,24 @@
             if (elem.value) {
                 subjInput.value = elem.value;
             }
+        }
+
+        function validateScanForm(form) {
+            @if ($room->isComputerLab())
+            const checkedSw = form.querySelectorAll('input[name="software_utilized[]"]:checked');
+            const customSw = form.querySelector('input[name="software_custom"]')?.value.trim();
+            if (checkedSw.length === 0 && !customSw) {
+                alert('Please select at least one software utilized for Computer Laboratory {{ $room->name }}.');
+                return false;
+            }
+            @endif
+
+            const btn = form.querySelector('button[type=submit]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '⏳ Checking Out...';
+            }
+            return true;
         }
 
         // Initialize on page load
