@@ -11,248 +11,7 @@
         </div>
     </x-slot>
 
-    <div class="py-8"
-         x-data="{
-             type: '{{ old('type', request('type', 'room')) }}',
-             borrowerMode: '{{ old('borrower_mode', 'faculty') }}',
-             borrowerName: '{{ addslashes(old('borrower_name', '')) }}',
-             borrowerEmail: '{{ addslashes(old('borrower_email', '')) }}',
-             selectedDepartment: '',
-             deptFilter: '',
-             subjectRoom: '{{ addslashes(old('subject', '')) }}',
-             subjectTool: '{{ addslashes(old('tool_subject', '')) }}',
-             subjectsByDept: {{ Js::from($subjects->groupBy('department')->map(fn($list) => $list->map(fn($s) => ['code' => $s->code, 'name' => $s->name, 'full' => $s->code . ' - ' . $s->name, 'year_level' => $s->year_level]))) }},
-             availableTools: {{ Js::from($tools->map(fn($t) => [
-                'id' => $t->id,
-                'name' => $t->name,
-                'category' => $t->category,
-                'department' => $t->department,
-                'department_short' => $t->departmentShort(),
-                'available' => (int) $t->available_quantity,
-                'total' => (int) $t->total_quantity,
-            ])) }},
-             toolRows: {{ Js::from(old('tools', [
-                 ['tool_id' => old('tool_id', ''), 'quantity' => (int) old('quantity', 1)]
-             ])) }},
-             roomToolRows: {{ Js::from(old('room_tools', [])) }},
-             selectedRoomId: '{{ old('room_id', request('room_id', '')) }}',
-             occupiedRooms: {{ Js::from($rooms->filter(fn($r) => $r->isOccupied())->mapWithKeys(fn($r) => [
-                 $r->id => [
-                     'id' => $r->id,
-                     'name' => $r->name,
-                     'borrower_name' => $r->currentTransaction()?->borrower_name,
-                     'subject' => $r->currentTransaction()?->subject,
-                     'checked_out_at' => $r->currentTransaction()?->checked_out_at?->format('M d, g:i A'),
-                     'checked_out_diff' => $r->currentTransaction()?->checked_out_at?->diffForHumans(),
-                     'transaction_id' => $r->currentTransaction()?->id,
-                     'is_stale' => $r->currentTransaction()?->isStale() ?? false,
-                 ]
-             ])) }},
-             computerLabIds: {{ Js::from($rooms->filter(fn($r) => $r->isComputerLab())->pluck('id')->map(fn($id) => (int)$id)) }},
-             get isSelectedRoomComputerLab() {
-                 if (!this.selectedRoomId) return false;
-                 return Boolean(this.computerLabIds.includes(parseInt(this.selectedRoomId)));
-             },
-             get currentOccupancy() {
-                 return this.selectedRoomId && this.occupiedRooms[this.selectedRoomId] ? this.occupiedRooms[this.selectedRoomId] : null;
-             },
-             vacatingRoom: false,
-             async vacateCurrentRoom() {
-                 if (!this.currentOccupancy || this.vacatingRoom) return;
-                 if (!confirm('Vacate ' + this.currentOccupancy.name + ' now and mark session #' + this.currentOccupancy.transaction_id + ' as returned?')) return;
-                 
-                 this.vacatingRoom = true;
-                 try {
-                     const res = await fetch('/admin/transactions/' + this.currentOccupancy.transaction_id + '/return', {
-                         method: 'POST',
-                         headers: {
-                             'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content') || '{{ csrf_token() }}',
-                             'Accept': 'application/json',
-                             'X-Requested-With': 'XMLHttpRequest'
-                         }
-                     });
-                     const data = await res.json();
-                     if (res.ok && data.success) {
-                         const freedRoomId = this.selectedRoomId;
-                         delete this.occupiedRooms[freedRoomId];
-                         
-                         const sel = document.getElementById('room_id');
-                         if (sel) {
-                             const opt = sel.querySelector('option[value=\"' + freedRoomId + '\"]');
-                             if (opt) {
-                                 opt.textContent = opt.textContent.replace(/🔴\s*\[IN USE:[^\]]+\]\s*/g, '')
-                                                                  .replace(/⚠️\s*\[UNCLOSED:[^\]]+\]\s*/g, '')
-                                                                  .replace(/\(Occupied\)|\(Vacant \/ Unclosed Past Session\)/g, '(Available)');
-                             }
-                         }
-                         alert('✓ ' + (data.message || 'Room marked as returned and is now vacant.'));
-                     } else {
-                         alert('Error vacating room: ' + (data.message || 'Please try again.'));
-                     }
-                 } catch (e) {
-                     console.error(e);
-                     alert('Network error while vacating room.');
-                 } finally {
-                     this.vacatingRoom = false;
-                 }
-             },
-
-             addToolRow() {
-                 this.toolRows.push({ tool_id: '', quantity: 1 });
-             },
-
-             removeToolRow(index) {
-                 if (this.toolRows.length > 1) {
-                     this.toolRows.splice(index, 1);
-                 }
-             },
-
-             addRoomToolRow(toolId = '') {
-                 this.roomToolRows.push({ tool_id: toolId, quantity: 1 });
-             },
-
-             removeRoomToolRow(index) {
-                 this.roomToolRows.splice(index, 1);
-             },
-
-             quickAddRoomTool(toolNameKeyword) {
-                 const kw = toolNameKeyword.toLowerCase();
-                 const found = this.availableTools.find(t => 
-                     t.available > 0 && (
-                         t.name.toLowerCase().includes(kw) || 
-                         (t.category && t.category.toLowerCase().includes(kw))
-                     )
-                 ) || this.availableTools.find(t => 
-                     t.name.toLowerCase().includes(kw) || 
-                     (t.category && t.category.toLowerCase().includes(kw))
-                 );
-
-                 if (found) {
-                     const existing = this.roomToolRows.find(r => r.tool_id == found.id);
-                     if (existing) {
-                         if (existing.quantity < found.available) {
-                             existing.quantity++;
-                         }
-                     } else {
-                         this.addRoomToolRow(found.id);
-                     }
-                 } else {
-                     this.addRoomToolRow('');
-                 }
-             },
-
-             getToolInfo(toolId) {
-                 if (!toolId) return null;
-                 return this.availableTools.find(t => t.id == toolId) || null;
-             },
-
-             init() {
-                 this.updateSubjectDropdown('subject_room_select', this.subjectRoom);
-                 this.updateSubjectDropdown('subject_tool_select', this.subjectTool);
-                 this.$watch('deptFilter', () => {
-                     this.updateSubjectDropdown('subject_room_select', this.subjectRoom);
-                     this.updateSubjectDropdown('subject_tool_select', this.subjectTool);
-                 });
-             },
-
-             updateSubjectDropdown(selectId, currentVal) {
-                 const sel = document.getElementById(selectId);
-                 if (!sel) return;
-                 sel.innerHTML = '';
-
-                 const defaultOpt = document.createElement('option');
-                 defaultOpt.value = '';
-                 defaultOpt.textContent = this.deptFilter
-                     ? '— Select Subject (' + this.deptFilter + ') —'
-                     : '— Choose Subject from Pre-list (or type below) —';
-                 sel.appendChild(defaultOpt);
-
-                 const depts = (this.deptFilter && this.subjectsByDept[this.deptFilter])
-                     ? [this.deptFilter]
-                     : Object.keys(this.subjectsByDept);
-
-                 depts.forEach(dept => {
-                     const list = this.subjectsByDept[dept];
-                     if (!list || !list.length) return;
-                     const grp = document.createElement('optgroup');
-                     grp.label = dept;
-                     list.forEach(item => {
-                         const opt = document.createElement('option');
-                         opt.value = item.full;
-                         opt.textContent = item.full + (item.year_level ? ' (' + item.year_level + ')' : '');
-                         if (item.full === currentVal) {
-                             opt.selected = true;
-                         }
-                         grp.appendChild(opt);
-                     });
-                     sel.appendChild(grp);
-                 });
-
-                 const customOpt = document.createElement('option');
-                 customOpt.value = '__custom__';
-                 customOpt.textContent = '✏️ Custom / Other Subject (Type manually below)';
-                 sel.appendChild(customOpt);
-             },
-
-             onFacultySelect(event) {
-                 const opt = event.target.selectedOptions[0];
-                 if (!opt || !opt.value) {
-                     this.borrowerName = '';
-                     this.borrowerEmail = '';
-                     this.selectedDepartment = '';
-                     this.deptFilter = '';
-                     return;
-                 }
-                 if (opt.value === '__custom__') {
-                     this.borrowerMode = 'custom';
-                     this.borrowerName = '';
-                     this.borrowerEmail = '';
-                     this.selectedDepartment = '';
-                     this.deptFilter = '';
-                     this.$nextTick(() => document.getElementById('borrower_name').focus());
-                     return;
-                 }
-                 this.borrowerName = opt.dataset.name || opt.value;
-                 this.borrowerEmail = opt.dataset.email || '';
-                 this.selectedDepartment = opt.dataset.department || '';
-
-                 if (this.selectedDepartment && this.subjectsByDept[this.selectedDepartment]) {
-                     this.deptFilter = this.selectedDepartment;
-                 } else {
-                     this.deptFilter = '';
-                 }
-             },
-
-             onSubjectSelect(event, targetProp) {
-                 const val = event.target.value;
-                 if (val === '__custom__') {
-                     const inputId = targetProp === 'subjectRoom' ? 'subject_room' : 'subject_tool';
-                     this.$nextTick(() => document.getElementById(inputId)?.focus());
-                     return;
-                 }
-                 if (val) {
-                     this[targetProp] = val;
-                 }
-             },
-
-             onRoomSelect(event) {
-                 this.selectedRoomId = event.target.value;
-                 const opt = event.target.selectedOptions[0];
-                 if (opt && opt.dataset.department) {
-                     if (!this.selectedDepartment) {
-                         this.selectedDepartment = opt.dataset.department;
-                     }
-                     if (!this.deptFilter && this.subjectsByDept[opt.dataset.department]) {
-                         this.deptFilter = opt.dataset.department;
-                     }
-                 }
-                 if (!this.isSelectedRoomComputerLab) {
-                     document.querySelectorAll('.software-checkbox').forEach(function(cb) { cb.checked = false; });
-                     const customSw = document.getElementById('software_custom');
-                     if (customSw) customSw.value = '';
-                 }
-             }
-         }">
+    <div class="py-8" x-data="transactionCreateForm()">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
             {{-- Type Selector Tabs --}}
@@ -997,4 +756,253 @@
 
         </div>
     </div>
+
+    <script>
+        function transactionCreateForm() {
+            return {
+                type: @js(old('type', request('type', 'room'))),
+                borrowerMode: @js(old('borrower_mode', 'faculty')),
+                borrowerName: @js(old('borrower_name', '')),
+                borrowerEmail: @js(old('borrower_email', '')),
+                selectedDepartment: '',
+                deptFilter: '',
+                subjectRoom: @js(old('subject', '')),
+                subjectTool: @js(old('tool_subject', '')),
+                subjectsByDept: @js($subjects->groupBy('department')->map(fn($list) => $list->map(fn($s) => ['code' => $s->code, 'name' => $s->name, 'full' => $s->code . ' - ' . $s->name, 'year_level' => $s->year_level]))),
+                availableTools: @js($tools->map(fn($t) => [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'category' => $t->category,
+                    'department' => $t->department,
+                    'department_short' => $t->departmentShort(),
+                    'available' => (int) $t->available_quantity,
+                    'total' => (int) $t->total_quantity,
+                ])),
+                toolRows: @js(old('tools', [
+                    ['tool_id' => old('tool_id', ''), 'quantity' => (int) old('quantity', 1)]
+                ])),
+                roomToolRows: @js(old('room_tools', [])),
+                selectedRoomId: @js(old('room_id', request('room_id', ''))),
+                occupiedRooms: @js($rooms->filter(fn($r) => $r->isOccupied())->mapWithKeys(fn($r) => [
+                    $r->id => [
+                        'id' => $r->id,
+                        'name' => $r->name,
+                        'borrower_name' => $r->currentTransaction()?->borrower_name,
+                        'subject' => $r->currentTransaction()?->subject,
+                        'checked_out_at' => $r->currentTransaction()?->checked_out_at?->format('M d, g:i A'),
+                        'checked_out_diff' => $r->currentTransaction()?->checked_out_at?->diffForHumans(),
+                        'transaction_id' => $r->currentTransaction()?->id,
+                        'is_stale' => $r->currentTransaction()?->isStale() ?? false,
+                    ]
+                ])),
+                computerLabIds: @js($rooms->filter(fn($r) => $r->isComputerLab())->pluck('id')->map(fn($id) => (int)$id)),
+                vacatingRoom: false,
+
+                get isSelectedRoomComputerLab() {
+                    if (!this.selectedRoomId) return false;
+                    return Boolean(this.computerLabIds.includes(parseInt(this.selectedRoomId)));
+                },
+
+                get currentOccupancy() {
+                    return this.selectedRoomId && this.occupiedRooms[this.selectedRoomId] ? this.occupiedRooms[this.selectedRoomId] : null;
+                },
+
+                async vacateCurrentRoom() {
+                    if (!this.currentOccupancy || this.vacatingRoom) return;
+                    if (!confirm('Vacate ' + this.currentOccupancy.name + ' now and mark session #' + this.currentOccupancy.transaction_id + ' as returned?')) return;
+
+                    this.vacatingRoom = true;
+                    try {
+                        const res = await fetch('/admin/transactions/' + this.currentOccupancy.transaction_id + '/return', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                            const freedRoomId = this.selectedRoomId;
+                            delete this.occupiedRooms[freedRoomId];
+
+                            const sel = document.getElementById('room_id');
+                            if (sel) {
+                                const opt = sel.querySelector('option[value="' + freedRoomId + '"]');
+                                if (opt) {
+                                    opt.textContent = opt.textContent.replace(/🔴\s*\[IN USE:[^\]]+\]\s*/g, '')
+                                                                     .replace(/⚠️\s*\[UNCLOSED:[^\]]+\]\s*/g, '')
+                                                                     .replace(/\(Occupied\)|\(Vacant \/ Unclosed Past Session\)/g, '(Available)');
+                                }
+                            }
+                            alert('✓ ' + (data.message || 'Room marked as returned and is now vacant.'));
+                        } else {
+                            alert('Error vacating room: ' + (data.message || 'Please try again.'));
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        alert('Network error while vacating room.');
+                    } finally {
+                        this.vacatingRoom = false;
+                    }
+                },
+
+                addToolRow() {
+                    this.toolRows.push({ tool_id: '', quantity: 1 });
+                },
+
+                removeToolRow(index) {
+                    if (this.toolRows.length > 1) {
+                        this.toolRows.splice(index, 1);
+                    }
+                },
+
+                addRoomToolRow(toolId = '') {
+                    this.roomToolRows.push({ tool_id: toolId, quantity: 1 });
+                },
+
+                removeRoomToolRow(index) {
+                    this.roomToolRows.splice(index, 1);
+                },
+
+                quickAddRoomTool(toolNameKeyword) {
+                    const kw = toolNameKeyword.toLowerCase();
+                    const found = this.availableTools.find(t =>
+                        t.available > 0 && (
+                            t.name.toLowerCase().includes(kw) ||
+                            (t.category && t.category.toLowerCase().includes(kw))
+                        )
+                    ) || this.availableTools.find(t =>
+                        t.name.toLowerCase().includes(kw) ||
+                        (t.category && t.category.toLowerCase().includes(kw))
+                    );
+
+                    if (found) {
+                        const existing = this.roomToolRows.find(r => r.tool_id == found.id);
+                        if (existing) {
+                            if (existing.quantity < found.available) {
+                                existing.quantity++;
+                            }
+                        } else {
+                            this.addRoomToolRow(found.id);
+                        }
+                    } else {
+                        this.addRoomToolRow('');
+                    }
+                },
+
+                getToolInfo(toolId) {
+                    if (!toolId) return null;
+                    return this.availableTools.find(t => t.id == toolId) || null;
+                },
+
+                init() {
+                    this.updateSubjectDropdown('subject_room_select', this.subjectRoom);
+                    this.updateSubjectDropdown('subject_tool_select', this.subjectTool);
+                    this.$watch('deptFilter', () => {
+                        this.updateSubjectDropdown('subject_room_select', this.subjectRoom);
+                        this.updateSubjectDropdown('subject_tool_select', this.subjectTool);
+                    });
+                },
+
+                updateSubjectDropdown(selectId, currentVal) {
+                    const sel = document.getElementById(selectId);
+                    if (!sel) return;
+                    sel.innerHTML = '';
+
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = this.deptFilter
+                        ? '— Select Subject (' + this.deptFilter + ') —'
+                        : '— Choose Subject from Pre-list (or type below) —';
+                    sel.appendChild(defaultOpt);
+
+                    const depts = (this.deptFilter && this.subjectsByDept[this.deptFilter])
+                        ? [this.deptFilter]
+                        : Object.keys(this.subjectsByDept);
+
+                    depts.forEach(dept => {
+                        const list = this.subjectsByDept[dept];
+                        if (!list || !list.length) return;
+                        const grp = document.createElement('optgroup');
+                        grp.label = dept;
+                        list.forEach(item => {
+                            const opt = document.createElement('option');
+                            opt.value = item.full;
+                            opt.textContent = item.full + (item.year_level ? ' (' + item.year_level + ')' : '');
+                            if (item.full === currentVal) {
+                                opt.selected = true;
+                            }
+                            grp.appendChild(opt);
+                        });
+                        sel.appendChild(grp);
+                    });
+
+                    const customOpt = document.createElement('option');
+                    customOpt.value = '__custom__';
+                    customOpt.textContent = '✏️ Custom / Other Subject (Type manually below)';
+                    sel.appendChild(customOpt);
+                },
+
+                onFacultySelect(event) {
+                    const opt = event.target.selectedOptions[0];
+                    if (!opt || !opt.value) {
+                        this.borrowerName = '';
+                        this.borrowerEmail = '';
+                        this.selectedDepartment = '';
+                        this.deptFilter = '';
+                        return;
+                    }
+                    if (opt.value === '__custom__') {
+                        this.borrowerMode = 'custom';
+                        this.borrowerName = '';
+                        this.borrowerEmail = '';
+                        this.selectedDepartment = '';
+                        this.deptFilter = '';
+                        this.$nextTick(() => document.getElementById('borrower_name').focus());
+                        return;
+                    }
+                    this.borrowerName = opt.dataset.name || opt.value;
+                    this.borrowerEmail = opt.dataset.email || '';
+                    this.selectedDepartment = opt.dataset.department || '';
+
+                    if (this.selectedDepartment && this.subjectsByDept[this.selectedDepartment]) {
+                        this.deptFilter = this.selectedDepartment;
+                    } else {
+                        this.deptFilter = '';
+                    }
+                },
+
+                onSubjectSelect(event, targetProp) {
+                    const val = event.target.value;
+                    if (val === '__custom__') {
+                        const inputId = targetProp === 'subjectRoom' ? 'subject_room' : 'subject_tool';
+                        this.$nextTick(() => document.getElementById(inputId)?.focus());
+                        return;
+                    }
+                    if (val) {
+                        this[targetProp] = val;
+                    }
+                },
+
+                onRoomSelect(event) {
+                    this.selectedRoomId = event.target.value;
+                    const opt = event.target.selectedOptions[0];
+                    if (opt && opt.dataset.department) {
+                        if (!this.selectedDepartment) {
+                            this.selectedDepartment = opt.dataset.department;
+                        }
+                        if (!this.deptFilter && this.subjectsByDept[opt.dataset.department]) {
+                            this.deptFilter = opt.dataset.department;
+                        }
+                    }
+                    if (!this.isSelectedRoomComputerLab) {
+                        document.querySelectorAll('.software-checkbox').forEach(function(cb) { cb.checked = false; });
+                        const customSw = document.getElementById('software_custom');
+                        if (customSw) customSw.value = '';
+                    }
+                }
+            };
+        }
+    </script>
 </x-app-layout>
