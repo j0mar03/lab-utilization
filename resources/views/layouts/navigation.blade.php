@@ -27,6 +27,14 @@
 
                     {{-- Admin Only Modules --}}
                     @if (Auth::user()->isLabHead())
+                        <x-nav-link :href="route('admin.faculties.index')" :active="request()->routeIs('admin.faculties.*')">
+                            {{ __('👨‍🏫 Faculty') }}
+                        </x-nav-link>
+
+                        <x-nav-link :href="route('admin.subjects.index')" :active="request()->routeIs('admin.subjects.*')">
+                            {{ __('📚 Subjects') }}
+                        </x-nav-link>
+
                         <x-nav-link :href="route('admin.tools.index')" :active="request()->routeIs('admin.tools.*')">
                             {{ __('🔧 Tools') }}
                         </x-nav-link>
@@ -115,6 +123,14 @@
             @endif
 
             @if (Auth::user()->isLabHead())
+                <x-responsive-nav-link :href="route('admin.faculties.index')" :active="request()->routeIs('admin.faculties.*')">
+                    {{ __('👨‍🏫 Faculty') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.subjects.index')" :active="request()->routeIs('admin.subjects.*')">
+                    {{ __('📚 Subjects') }}
+                </x-responsive-nav-link>
+
                 <x-responsive-nav-link :href="route('admin.tools.index')" :active="request()->routeIs('admin.tools.*')">
                     {{ __('🔧 Tools') }}
                 </x-responsive-nav-link>

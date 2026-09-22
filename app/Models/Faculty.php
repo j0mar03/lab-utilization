@@ -21,6 +21,14 @@ class Faculty extends Model
         'is_active' => 'boolean',
     ];
 
+    public const DEPARTMENTS = [
+        'Department of Computer and Electronics Engineering Technology' => 'DECET',
+        'Department of Office Management and Information Technology' => 'DOMIT',
+        'Department of Electrical and Mechanical Engineering Technology' => 'DEMET',
+        'Department of Civil and Railway Engineering Technology' => 'DCRET',
+        'College of Science' => 'CS',
+    ];
+
     public function departmentShort(): string
     {
         return match($this->department) {
