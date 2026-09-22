@@ -1,62 +1,80 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-                <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                    📊 Laboratory & Tool Utilization Dashboard
-                </h2>
+                <div class="flex items-center gap-2">
+                    <h2 class="font-bold text-xl text-gray-800 dark:text-gray-100 leading-tight tracking-tight">
+                        📊 Facility & Tool Utilization Board
+                    </h2>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-xs">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        LIVE MONITORING
+                    </span>
+                </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Real-time room occupancy and equipment circulation tracking across departments
+                    Real-time room occupancy, equipment circulation, and laboratory turnstile tracking
                 </p>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">
-                    Last refreshed: {{ now()->format('M d, g:i A') }}
+            <div class="flex items-center gap-2.5">
+                <span class="text-xs text-gray-400 dark:text-gray-500 hidden md:inline">
+                    Updated: {{ now()->format('g:i A') }}
                 </span>
                 @if (Auth::user()->isLabHead() || Auth::user()->isStudentAssistant())
                     <a href="{{ route('admin.transactions.create') }}"
-                       class="inline-flex items-center px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition">
-                        + New Checkout
+                       class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition">
+                        <span>+</span>
+                        <span>New Checkout</span>
                     </a>
                 @endif
             </div>
         </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="py-6 sm:py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             {{-- ── Overdue Alert Banner ────────────────────────────────────── --}}
             @if ($overdueCount > 0)
-                <div class="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-xl p-4">
+                <div class="bg-red-50 dark:bg-red-950/40 border-2 border-red-300 dark:border-red-800 rounded-2xl p-4 shadow-sm">
                     <div class="flex items-start gap-3">
                         <span class="text-2xl mt-0.5">🚨</span>
                         <div class="flex-1">
                             <div class="flex items-center justify-between">
-                                <p class="font-bold text-red-800 dark:text-red-300">
-                                    {{ $overdueCount }} Overdue Item{{ $overdueCount !== 1 ? 's' : '' }}
-                                    <span class="text-xs font-normal text-red-600 dark:text-red-400 ml-2">
+                                <p class="font-bold text-red-900 dark:text-red-200 text-sm sm:text-base">
+                                    {{ $overdueCount }} Overdue Transaction{{ $overdueCount !== 1 ? 's' : '' }} Requiring Follow-up
+                                    <span class="text-xs font-normal text-red-700 dark:text-red-400 ml-2">
                                         ({{ $overdueRoomCount }} Room{{ $overdueRoomCount !== 1 ? 's' : '' }}, {{ $overdueToolCount }} Tool{{ $overdueToolCount !== 1 ? 's' : '' }})
                                     </span>
                                 </p>
                             </div>
-                            <div class="mt-2 space-y-1">
+                            <div class="mt-2 space-y-1.5">
                                 @foreach ($overdueTransactions as $tx)
-                                    <div class="flex items-center justify-between text-sm">
-                                        <span class="text-red-700 dark:text-red-400">
-                                            <span class="font-medium">{{ $tx->isRoom() ? '🏫 ' : '🔧 ' }}{{ $tx->borrower_name }}</span>
-                                            <span class="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 ml-1">
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm py-1 border-b border-red-100 dark:border-red-900/40 last:border-0">
+                                        <span class="text-red-800 dark:text-red-300">
+                                            <span class="font-semibold">{{ $tx->isRoom() ? '🏫 ' . ($tx->room?->name ?? 'Room') : '🔧 ' . ($tx->tool?->name ?? 'Tool') }}</span>
+                                            — <span class="font-medium">{{ $tx->borrower_name }}</span>
+                                            <span class="text-[11px] px-1.5 py-0.2 rounded bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 ml-1 font-semibold">
                                                 {{ $tx->departmentShort() }}
                                             </span>
-                                            — {{ $tx->subjectDescription() }}
-                                            <span class="text-red-400 ml-1 text-xs">
+                                            <span class="text-red-600 dark:text-red-400 text-xs ml-1">
                                                 (due {{ $tx->expected_return_at->diffForHumans() }})
                                             </span>
                                         </span>
-                                        @can('admin')
-                                        <a href="{{ route('admin.transactions.show', $tx->id) }}"
-                                           class="text-xs text-red-600 hover:underline ml-3">Details →</a>
-                                        @endcan
+                                        <div class="flex items-center gap-3 mt-1 sm:mt-0 shrink-0">
+                                            <a href="{{ route('scan.return', $tx->id) }}"
+                                               class="font-semibold text-orange-700 dark:text-orange-400 hover:underline">
+                                                ↩ Mark Free
+                                            </a>
+                                            @can('admin')
+                                                <a href="{{ route('admin.transactions.show', $tx->id) }}"
+                                                   class="text-red-600 dark:text-red-400 hover:underline font-medium">
+                                                    Details →
+                                                </a>
+                                            @endcan
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>
@@ -65,41 +83,15 @@
                 </div>
             @endif
 
-            {{-- ── Quick Actions (Lab Head) ───────────────────────────────── --}}
-            @if (auth()->user()->isLabHead())
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <a href="{{ route('admin.qr.rooms') }}"
-                       class="flex flex-col items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3.5 px-3 text-center transition shadow-sm">
-                        <span class="text-2xl mb-1">🏫</span>
-                        <span class="text-sm font-semibold">Room QR Codes</span>
-                    </a>
-                    <a href="{{ route('admin.qr.tools') }}"
-                       class="flex flex-col items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3.5 px-3 text-center transition shadow-sm">
-                        <span class="text-2xl mb-1">🔧</span>
-                        <span class="text-sm font-semibold">Tool QR Codes</span>
-                    </a>
-                    <a href="{{ route('admin.transactions.index') }}"
-                       class="flex flex-col items-center justify-center bg-gray-700 hover:bg-gray-800 text-white rounded-xl py-3.5 px-3 text-center transition shadow-sm">
-                        <span class="text-2xl mb-1">📋</span>
-                        <span class="text-sm font-semibold">Transaction Logs</span>
-                    </a>
-                    <a href="{{ route('admin.reports.index') }}"
-                       class="flex flex-col items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3.5 px-3 text-center transition shadow-sm">
-                        <span class="text-2xl mb-1">📈</span>
-                        <span class="text-sm font-semibold">Utilization Reports</span>
-                    </a>
-                </div>
-            @endif
-
-            {{-- ── Separated Key Stat Cards ─────────────────────────────────── --}}
+            {{-- ── Utilization Summary Metrics ──────────────────────────────── --}}
             <div>
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        ⚡ Real-Time Utilization Status
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <span>⚡ Real-Time Utilization Summary</span>
                     </h3>
                     @if ($deptActive->isNotEmpty())
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-xs text-gray-400">Active by Dept:</span>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-[11px] text-gray-400 dark:text-gray-500">Active by Dept:</span>
                             @foreach ($deptActive as $dept => $count)
                                 @php
                                     $short = match($dept) {
@@ -111,7 +103,7 @@
                                         default => substr($dept, 0, 10),
                                     };
                                 @endphp
-                                <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium border border-blue-200 dark:border-blue-800">
+                                <span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800">
                                     {{ $short }}: <strong>{{ $count }}</strong>
                                 </span>
                             @endforeach
@@ -119,264 +111,539 @@
                     @endif
                 </div>
 
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {{-- 1. Room Occupancy --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {{-- 1. Room Occupancy Card --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 sm:p-5 border border-gray-100 dark:border-gray-700 relative overflow-hidden flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                 🏫 Rooms In Use
-                            </div>
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-semibold">
-                                Room
+                            </span>
+                            <span class="text-[11px] px-2 py-0.5 rounded-full {{ $openRoomCount > 0 ? 'bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 font-bold' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium' }}">
+                                {{ $openRoomCount > 0 ? 'Active' : 'All Free' }}
                             </span>
                         </div>
-                        <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-2">
-                            {{ $openRoomCount }}
-                            <span class="text-sm font-normal text-gray-400">/ {{ $totalRooms }}</span>
+                        <div class="mt-2">
+                            <div class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                                {{ $openRoomCount }}
+                                <span class="text-sm sm:text-base font-normal text-gray-400 dark:text-gray-500">/ {{ $totalRooms }}</span>
+                            </div>
+                            {{-- Mini Progress Bar --}}
+                            <div class="w-full bg-gray-100 dark:bg-gray-700 h-2 rounded-full mt-3 overflow-hidden">
+                                <div class="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                     style="width: {{ min(100, $roomUtilizationRate) }}%"></div>
+                            </div>
                         </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between">
-                            <span>🟢 {{ $availableRoomsCount }} available</span>
-                            <span>{{ $todayRoomCount }} today</span>
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5 flex items-center justify-between font-medium">
+                            <span class="text-emerald-600 dark:text-emerald-400">🟢 {{ $availableRoomsCount }} vacant</span>
+                            <span>{{ $roomUtilizationRate }}% occupied</span>
                         </div>
                     </div>
 
-                    {{-- 2. Tool Borrowings --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                    {{-- 2. Tool Borrowings Card --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 sm:p-5 border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                🔧 Active Tool Borrows
-                            </div>
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 font-semibold">
-                                Tool
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                🔧 Tool Borrows
+                            </span>
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold">
+                                Equipment
                             </span>
                         </div>
-                        <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
-                            {{ $openToolCount }}
+                        <div class="mt-2">
+                            <div class="text-3xl sm:text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
+                                {{ $openToolCount }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Tools and accessories checked out
+                            </div>
                         </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between">
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5 flex items-center justify-between font-medium pt-2 border-t border-gray-100 dark:border-gray-700/60">
                             <span>📦 {{ $availableToolsCount }} free types</span>
                             <span>{{ $todayToolCount }} today</span>
                         </div>
                     </div>
 
-                    {{-- 3. Overdue Items --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border {{ $overdueCount > 0 ? 'border-red-300 dark:border-red-700' : 'border-gray-100 dark:border-gray-700' }}">
+                    {{-- 3. Overdue Items Card --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 sm:p-5 border {{ $overdueCount > 0 ? 'border-red-300 dark:border-red-700/80 bg-red-50/20' : 'border-gray-100 dark:border-gray-700' }} flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                 🚨 Overdue Items
-                            </div>
+                            </span>
                             @if ($overdueCount > 0)
-                                <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 font-bold animate-pulse">
-                                    Action
+                                <span class="text-[11px] px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 font-bold animate-pulse">
+                                    Action Required
+                                </span>
+                            @else
+                                <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 font-semibold">
+                                    Normal
                                 </span>
                             @endif
                         </div>
-                        <div class="text-3xl font-black {{ $overdueCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100' }} mt-2">
-                            {{ $overdueCount }}
+                        <div class="mt-2">
+                            <div class="text-3xl sm:text-4xl font-black {{ $overdueCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100' }} tracking-tight">
+                                {{ $overdueCount }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {{ $overdueCount > 0 ? 'Items past expected return' : 'All items returned on schedule' }}
+                            </div>
                         </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {{ $overdueRoomCount }} room{{ $overdueRoomCount !== 1 ? 's' : '' }}, {{ $overdueToolCount }} tool checkout{{ $overdueToolCount !== 1 ? 's' : '' }}
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5 flex items-center justify-between font-medium pt-2 border-t border-gray-100 dark:border-gray-700/60">
+                            <span>{{ $overdueRoomCount }} room{{ $overdueRoomCount !== 1 ? 's' : '' }}</span>
+                            <span>{{ $overdueToolCount }} tool{{ $overdueToolCount !== 1 ? 's' : '' }}</span>
                         </div>
                     </div>
 
-                    {{-- 4. Today's Total Activity --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                    {{-- 4. Today's Turnover Card --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 sm:p-5 border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                📅 Total Today
-                            </div>
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 font-semibold">
+                            <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                📅 Today's Activity
+                            </span>
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 font-bold">
                                 Combined
                             </span>
                         </div>
-                        <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">
-                            {{ $todayCount }}
+                        <div class="mt-2">
+                            <div class="text-3xl sm:text-4xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight">
+                                {{ $todayCount }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Total checkouts recorded today
+                            </div>
                         </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {{ $todayRoomCount }} room / {{ $todayToolCount }} tool checkouts
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5 flex items-center justify-between font-medium pt-2 border-t border-gray-100 dark:border-gray-700/60">
+                            <span>🏫 {{ $todayRoomCount }} rooms</span>
+                            <span>🔧 {{ $todayToolCount }} tools</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {{-- ── Main Content: Current Occupancy + Borrowed Tools ──────────── --}}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                {{-- Current Room Occupancy --}}
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
-                    <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-blue-50/40 dark:bg-gray-750">
-                        <div class="flex items-center gap-2">
-                            <span class="text-lg">🏫</span>
-                            <h3 class="font-semibold text-gray-900 dark:text-gray-100">Live Room Occupancy</h3>
+            {{-- ═════════════════════════════════════════════════════════════════ --}}
+            {{-- HERO: LIVE FACILITY ROOM STATUS BOARD                            --}}
+            {{-- ═════════════════════════════════════════════════════════════════ --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                 x-data="{
+                     filter: 'all',
+                     floor: 'all',
+                     search: '',
+                     matchesFilter(isOccupied, isLab, isLecture, isOffice, location, haystack) {
+                         if (this.filter === 'in_use' && !isOccupied) return false;
+                         if (this.filter === 'available' && isOccupied) return false;
+                         if (this.filter === 'labs' && !isLab) return false;
+                         if (this.filter === 'lectures' && !isLecture) return false;
+                         if (this.filter === 'offices' && !isOffice) return false;
+                         if (this.floor !== 'all' && location !== this.floor) return false;
+                         if (this.search.trim() !== '') {
+                             const q = this.search.toLowerCase().trim();
+                             return haystack.toLowerCase().includes(q);
+                         }
+                         return true;
+                     }
+                 }">
+                {{-- Board Header --}}
+                <div class="p-5 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 via-white to-gray-50 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">🏫</span>
+                                <div>
+                                    <h3 class="font-black text-lg text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-2">
+                                        <span>Live Facility Room Board</span>
+                                        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200">
+                                            {{ $openRoomCount }} of {{ $totalRooms }} In Use
+                                        </span>
+                                    </h3>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        Click any vacant room to immediately start a checkout, or manage active sessions
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <span class="text-xs px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-semibold">
-                            {{ $occupiedRooms->count() }} of {{ $totalRooms }} Active
-                        </span>
+
+                        {{-- Search and Floor Selector --}}
+                        <div class="flex flex-wrap items-center gap-2">
+                            {{-- Instant Search --}}
+                            <div class="relative min-w-[220px] flex-1 sm:flex-initial">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400 text-xs">
+                                    🔍
+                                </span>
+                                <input type="text"
+                                       x-model="search"
+                                       placeholder="Search room, faculty, subject..."
+                                       class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 transition">
+                            </div>
+
+                            {{-- Floor Filter --}}
+                            <select x-model="floor"
+                                    class="py-1.5 px-3 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:border-blue-500 focus:ring-blue-500 font-medium">
+                                <option value="all">🏢 All Floors</option>
+                                @foreach ($floors as $fl)
+                                    <option value="{{ $fl }}">{{ $fl }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
-                    @if ($occupiedRooms->isEmpty())
-                        <div class="px-5 py-12 text-center text-gray-400 dark:text-gray-500 my-auto">
-                            <p class="text-3xl mb-2">🟢</p>
-                            <p class="text-sm font-medium">All rooms are currently vacant and available</p>
-                        </div>
-                    @else
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto">
-                            @foreach ($occupiedRooms as $room)
-                                @foreach ($room->transactions as $tx)
-                                    <div class="px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition">
-                                        <div class="flex items-start justify-between gap-2">
-                                            <div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="font-bold text-sm text-gray-900 dark:text-gray-100">
-                                                        {{ $room->name }}
-                                                    </span>
-                                                    <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                                                        {{ $tx->departmentShort() }}
-                                                    </span>
-                                                </div>
-                                                <div class="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
-                                                    <span class="font-medium">{{ $tx->borrower_name }}</span>
-                                                    @if ($tx->subject)
-                                                        — <span class="text-gray-500 dark:text-gray-400 text-xs">{{ $tx->subject }}</span>
-                                                    @endif
-                                                </div>
-                                                @if ($tx->hasSoftwareUtilized())
-                                                    <div class="flex flex-wrap gap-1 mt-1.5">
-                                                        @foreach ((array) $tx->software_utilized as $sw)
-                                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                                                                💻 {{ $sw }}
-                                                            </span>
-                                                        @endforeach
-                                                    </div>
-                                                @endif
-                                            </div>
-                                            <div class="text-right shrink-0">
-                                                <div class="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                                    {{ $tx->checked_out_at->format('g:i A') }}
-                                                </div>
-                                                <div class="text-[11px] {{ $tx->isOverdue() ? 'text-red-500 font-semibold' : 'text-gray-400' }}">
-                                                    {{ $tx->checked_out_at->diffForHumans(null, true) }} in use
-                                                    @if ($tx->isOverdue()) ⚠️ @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                        @if (auth()->user()->isLabHead() || auth()->user()->isStudentAssistant())
-                                            <div class="mt-2 flex items-center gap-3 text-xs">
-                                                <a href="{{ route('scan.return', $tx->id) }}"
-                                                   class="font-medium text-orange-600 hover:text-orange-700 dark:text-orange-400">
-                                                    ↩ Mark Free
-                                                </a>
-                                                <a href="{{ route('admin.transactions.show', $tx->id) }}"
-                                                   class="text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                                                    View Details
-                                                </a>
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endforeach
-                            @endforeach
-                        </div>
-                    @endif
+                    {{-- Filter Tabs Bar --}}
+                    <div class="flex items-center gap-1.5 mt-4 overflow-x-auto pb-1 text-xs">
+                        <button type="button"
+                                @click="filter = 'all'"
+                                :class="filter === 'all' ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <span>All Rooms</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $totalRooms }}</span>
+                        </button>
+
+                        <button type="button"
+                                @click="filter = 'in_use'"
+                                :class="filter === 'in_use' ? 'bg-red-600 text-white font-bold shadow-xs' : 'bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-900'"
+                                class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                            <span>In Use</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-red-200/60 dark:bg-red-900 text-red-900 dark:text-red-200 font-bold">{{ $openRoomCount }}</span>
+                        </button>
+
+                        <button type="button"
+                                @click="filter = 'available'"
+                                :class="filter === 'available' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-900'"
+                                class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>Available</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-200/60 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 font-bold">{{ $availableRoomsCount }}</span>
+                        </button>
+
+                        <button type="button"
+                                @click="filter = 'labs'"
+                                :class="filter === 'labs' ? 'bg-blue-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <span>🔬 Computer Labs</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $allRooms->filter(fn($r) => $r->isLab())->count() }}</span>
+                        </button>
+
+                        <button type="button"
+                                @click="filter = 'lectures'"
+                                :class="filter === 'lectures' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <span>📖 Lecture Rooms</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $allRooms->filter(fn($r) => $r->isLecture())->count() }}</span>
+                        </button>
+
+                        <button type="button"
+                                @click="filter = 'offices'"
+                                :class="filter === 'offices' ? 'bg-purple-600 text-white font-bold shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                class="px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <span>🏢 Lab Offices</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-black/20">{{ $allRooms->filter(fn($r) => $r->isOffice())->count() }}</span>
+                        </button>
+                    </div>
                 </div>
 
-                {{-- Currently Borrowed Tools --}}
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
-                    <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-emerald-50/40 dark:bg-gray-750">
-                        <div class="flex items-center gap-2">
-                            <span class="text-lg">🔧</span>
-                            <h3 class="font-semibold text-gray-900 dark:text-gray-100">Live Tool & Equipment Borrows</h3>
-                        </div>
-                        <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 font-semibold">
-                            {{ $borrowedTools->count() }} Equipment Types Out
-                        </span>
-                    </div>
+                {{-- Room Cards Grid --}}
+                <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    @foreach ($allRooms as $room)
+                        @php
+                            $activeTx = $room->transactions->first();
+                            $isOcc = (bool) $activeTx;
+                            $concurrentCount = $room->transactions->count();
+                            $searchHaystack = $room->name . ' ' .
+                                ($room->location ?? '') . ' ' .
+                                ($room->department ?? '') . ' ' .
+                                ($isOcc ? ($activeTx->borrower_name . ' ' . $activeTx->subject . ' ' . $activeTx->softwareSummary() . ' ' . $activeTx->items->pluck('tool.name')->join(' ')) : 'vacant available');
+                        @endphp
 
-                    @if ($borrowedTools->isEmpty())
-                        <div class="px-5 py-12 text-center text-gray-400 dark:text-gray-500 my-auto">
-                            <p class="text-3xl mb-2">✅</p>
-                            <p class="text-sm font-medium">All tools and equipment are currently available</p>
-                        </div>
-                    @else
-                        <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto">
-                            @foreach ($borrowedTools as $tool)
-                                <div class="px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-semibold text-sm text-gray-900 dark:text-gray-100">
-                                                {{ $tool->name }}
-                                            </span>
-                                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                                {{ $tool->departmentShort() }}
-                                            </span>
+                        <div x-show="matchesFilter({{ $isOcc ? 'true' : 'false' }}, {{ $room->isLab() ? 'true' : 'false' }}, {{ $room->isLecture() ? 'true' : 'false' }}, {{ $room->isOffice() ? 'true' : 'false' }}, '{{ addslashes($room->location ?? '') }}', '{{ addslashes(strtolower($searchHaystack)) }}')"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             class="rounded-2xl border transition-all duration-200 flex flex-col justify-between {{ $isOcc ? 'border-2 border-red-400 dark:border-red-600 bg-gradient-to-b from-red-50/60 via-white to-white dark:from-red-950/25 dark:via-gray-800 dark:to-gray-800 shadow-sm' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-400 dark:hover:border-emerald-500 shadow-xs hover:shadow-md' }} p-4">
+
+                            {{-- ── CARD TOP ────────────────────────────────── --}}
+                            <div>
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div class="flex items-center gap-1.5">
+                                            <h4 class="font-black text-lg text-gray-900 dark:text-gray-100 tracking-tight">
+                                                {{ $room->name }}
+                                            </h4>
+                                            @if ($concurrentCount > 1)
+                                                <span class="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                                    👥 {{ $concurrentCount }} Classes
+                                                </span>
+                                            @endif
                                         </div>
-                                        <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
-                                            {{ $tool->borrowed_quantity }}/{{ $tool->total_quantity }} borrowed
-                                        </span>
+                                        <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                                            <span>📍 {{ $room->location ?? 'ITECH Campus' }}</span>
+                                        </div>
                                     </div>
 
-                                    {{-- Direct transaction checkouts --}}
-                                    @foreach ($tool->transactions as $tx)
-                                        <div class="text-xs text-gray-600 dark:text-gray-300 ml-1 mb-1 flex items-center justify-between">
-                                            <div>
-                                                👤 <span class="font-medium">{{ $tx->borrower_name }}</span>
-                                                <span class="text-gray-400 text-[11px]">({{ $tx->departmentShort() }})</span>
-                                                @if ($tx->quantity > 1)<span class="font-semibold text-blue-600">×{{ $tx->quantity }}</span>@endif
-                                            </div>
-                                            <span class="text-gray-400 text-[11px]">{{ $tx->checked_out_at->format('g:i A') }}</span>
-                                        </div>
-                                    @endforeach
-
-                                    {{-- Multi-item transaction checkouts --}}
-                                    @foreach ($tool->transactionItems as $item)
-                                        @if ($item->transaction && !in_array($item->transaction->id, $tool->transactions->pluck('id')->toArray()))
-                                            <div class="text-xs text-gray-600 dark:text-gray-300 ml-1 mb-1 flex items-center justify-between">
-                                                <div>
-                                                    👤 <span class="font-medium">{{ $item->transaction->borrower_name }}</span>
-                                                    <span class="text-gray-400 text-[11px]">({{ $item->transaction->departmentShort() }})</span>
-                                                    <span class="font-semibold text-blue-600">×{{ $item->remaining_quantity }}</span>
-                                                </div>
-                                                <span class="text-gray-400 text-[11px]">{{ $item->transaction->checked_out_at->format('g:i A') }}</span>
-                                            </div>
-                                        @endif
-                                    @endforeach
-
-                                    @if ($tool->available_quantity > 0)
-                                        <div class="text-[11px] text-green-600 dark:text-green-400 mt-1">
-                                            ✓ {{ $tool->available_quantity }} units still in stock
-                                        </div>
+                                    {{-- Status Badge --}}
+                                    @if ($isOcc)
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300 border border-red-300 dark:border-red-800 shrink-0">
+                                            <span class="relative flex h-2 w-2">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                            </span>
+                                            IN USE
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shrink-0">
+                                            🟢 AVAILABLE
+                                        </span>
                                     @endif
                                 </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
 
+                                {{-- Department & Category Badges --}}
+                                <div class="flex items-center gap-1.5 mt-2 flex-wrap">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                        {{ $room->departmentShort() }}
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                        {{ $room->isLab() ? '🔬 Lab' : ($room->isLecture() ? '📖 Lecture' : '🏢 Office') }}
+                                    </span>
+                                    @if ($room->has_wifi)
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300" title="WiFi Available">
+                                            📶 WiFi
+                                        </span>
+                                    @endif
+                                </div>
+
+                                {{-- ── OCCUPIED STATE DETAILS ───────────────── --}}
+                                @if ($isOcc)
+                                    <div class="mt-3 p-3 rounded-xl bg-red-50/70 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 space-y-1.5">
+                                        {{-- Faculty Borrower --}}
+                                        <div class="flex items-center gap-1.5 text-xs text-red-950 dark:text-red-200 font-bold">
+                                            <span class="text-sm">👤</span>
+                                            <span class="truncate" title="{{ $activeTx->borrower_name }}">{{ $activeTx->borrower_name }}</span>
+                                        </div>
+
+                                        {{-- Subject --}}
+                                        @if ($activeTx->subject)
+                                            <div class="text-[11px] text-gray-700 dark:text-gray-300 font-medium truncate" title="{{ $activeTx->subject }}">
+                                                📚 {{ $activeTx->subject }}
+                                            </div>
+                                        @endif
+
+                                        {{-- Elapsed Time --}}
+                                        <div class="text-[11px] text-gray-600 dark:text-gray-400 flex items-center justify-between pt-1 border-t border-red-100/60 dark:border-red-900/40">
+                                            <span>⏱️ Started: <strong>{{ $activeTx->checked_out_at->format('g:i A') }}</strong></span>
+                                            <span class="font-semibold text-gray-800 dark:text-gray-200">
+                                                {{ $activeTx->checked_out_at->diffForHumans(null, true) }}
+                                            </span>
+                                        </div>
+
+                                        {{-- Overdue Warning Badge --}}
+                                        @if ($activeTx->isOverdue())
+                                            <div class="text-[10px] font-bold text-red-700 dark:text-red-300 bg-red-200/90 dark:bg-red-900/80 px-2 py-0.5 rounded text-center animate-pulse">
+                                                ⚠️ OVERDUE (due {{ $activeTx->expected_return_at->diffForHumans() }})
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- Software utilized badges --}}
+                                    @if ($activeTx->hasSoftwareUtilized())
+                                        <div class="flex flex-wrap gap-1 mt-2">
+                                            @foreach ((array) $activeTx->software_utilized as $sw)
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                                    💻 {{ $sw }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                    {{-- Borrowed Accessories/Tools --}}
+                                    @if ($activeTx->items->isNotEmpty())
+                                        <div class="flex flex-wrap gap-1 mt-1.5">
+                                            @foreach ($activeTx->items as $it)
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                                    🔌 {{ $it->tool?->name ?? 'Tool' }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                {{-- ── VACANT STATE DETAILS ─────────────────── --}}
+                                @else
+                                    <div class="mt-4 py-3 px-3 rounded-xl bg-gray-50/70 dark:bg-gray-750/50 border border-dashed border-gray-200 dark:border-gray-700 text-center">
+                                        <span class="text-lg">✨</span>
+                                        <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-1">Room is Vacant</p>
+                                        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Ready for lecture or lab session</p>
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- ── CARD FOOTER / ACTIONS ─────────────────────── --}}
+                            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/80">
+                                @if ($isOcc)
+                                    @if (Auth::user()->isLabHead() || Auth::user()->isStudentAssistant())
+                                        <div class="flex items-center justify-between gap-2">
+                                            <a href="{{ route('scan.return', $activeTx->id) }}"
+                                               class="flex-1 text-center py-1.5 px-2 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition">
+                                                ↩ Vacate Room
+                                            </a>
+                                            <a href="{{ route('admin.transactions.show', $activeTx->id) }}"
+                                               class="py-1.5 px-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0">
+                                                Details →
+                                            </a>
+                                        </div>
+                                    @else
+                                        <div class="text-xs text-center text-red-600 dark:text-red-400 font-medium">
+                                            ● In Use by {{ $activeTx->borrower_name }}
+                                        </div>
+                                    @endif
+                                @else
+                                    @if (Auth::user()->isLabHead() || Auth::user()->isStudentAssistant())
+                                        <a href="{{ route('admin.transactions.create', ['room_id' => $room->id]) }}"
+                                           class="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow transition">
+                                            <span>+ Check In Room</span>
+                                        </a>
+                                    @else
+                                        <div class="text-xs text-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                                            ✓ Available for Class
+                                        </div>
+                                    @endif
+                                @endif
+                            </div>
+
+                        </div>
+                    @endforeach
+                </div>
             </div>
 
-            {{-- ── Separated Recent Transactions Section ────────────────────── --}}
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+            {{-- ═════════════════════════════════════════════════════════════════ --}}
+            {{-- CIRCULATING EQUIPMENT & TOOL BORROWS SECTION                     --}}
+            {{-- ═════════════════════════════════════════════════════════════════ --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-emerald-50/40 dark:bg-gray-850">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🔧</span>
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-gray-100 text-sm sm:text-base">
+                                Circulating Equipment & Tool Borrows
+                            </h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Active equipment, remotes, cables, and accessories currently borrowed
+                            </p>
+                        </div>
+                    </div>
+                    <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 font-bold self-start sm:self-auto">
+                        {{ $borrowedTools->count() }} Equipment Item{{ $borrowedTools->count() !== 1 ? 's' : '' }} Checked Out
+                    </span>
+                </div>
+
+                @if ($borrowedTools->isEmpty())
+                    <div class="px-5 py-10 text-center text-gray-400 dark:text-gray-500">
+                        <p class="text-3xl mb-1.5">✅</p>
+                        <p class="text-sm font-semibold text-gray-600 dark:text-gray-300">All tools, remotes, and accessories are currently in inventory</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">No equipment borrows active at this time.</p>
+                    </div>
+                @else
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-80 overflow-y-auto">
+                        @foreach ($borrowedTools as $tool)
+                            <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-750/50 transition">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-sm text-gray-900 dark:text-gray-100">
+                                            {{ $tool->name }}
+                                        </span>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                            {{ $tool->departmentShort() }}
+                                        </span>
+                                        @if ($tool->category)
+                                            <span class="text-xs text-gray-400 dark:text-gray-500 hidden md:inline">• {{ $tool->category }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
+                                            {{ $tool->borrowed_quantity }}/{{ $tool->total_quantity }} borrowed
+                                        </span>
+                                        @if ($tool->available_quantity > 0)
+                                            <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                                ({{ $tool->available_quantity }} free)
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                {{-- Borrowers list --}}
+                                <div class="space-y-1 mt-2 pl-2 border-l-2 border-emerald-300 dark:border-emerald-700">
+                                    {{-- Direct transaction checkouts --}}
+                                    @foreach ($tool->transactions as $tx)
+                                        <div class="text-xs text-gray-700 dark:text-gray-300 flex items-center justify-between py-0.5">
+                                            <div>
+                                                👤 <span class="font-bold">{{ $tx->borrower_name }}</span>
+                                                <span class="text-gray-400 text-[11px]">({{ $tx->departmentShort() }})</span>
+                                                @if ($tx->subject)
+                                                    <span class="text-gray-500 dark:text-gray-400 text-[11px]">— {{ $tx->subject }}</span>
+                                                @endif
+                                                @if ($tx->quantity > 1)<span class="font-bold text-blue-600 ml-1">×{{ $tx->quantity }}</span>@endif
+                                            </div>
+                                            <div class="flex items-center gap-2 shrink-0">
+                                                <span class="text-gray-400 text-[11px]">{{ $tx->checked_out_at->format('g:i A') }}</span>
+                                                @if (auth()->user()->isLabHead() || auth()->user()->isStudentAssistant())
+                                                    <a href="{{ route('scan.return', $tx->id) }}" class="text-[11px] font-semibold text-orange-600 hover:underline">
+                                                        ↩ Return
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+
+                                    {{-- Multi-item checkouts --}}
+                                    @foreach ($tool->transactionItems as $item)
+                                        @if ($item->transaction && !in_array($item->transaction->id, $tool->transactions->pluck('id')->toArray()))
+                                            <div class="text-xs text-gray-700 dark:text-gray-300 flex items-center justify-between py-0.5">
+                                                <div>
+                                                    👤 <span class="font-bold">{{ $item->transaction->borrower_name }}</span>
+                                                    <span class="text-gray-400 text-[11px]">({{ $item->transaction->departmentShort() }})</span>
+                                                    @if ($item->transaction->room)
+                                                        <span class="text-indigo-600 dark:text-indigo-400 text-[11px] font-medium">in {{ $item->transaction->room->name }}</span>
+                                                    @endif
+                                                    <span class="font-bold text-blue-600 ml-1">×{{ $item->remaining_quantity }}</span>
+                                                </div>
+                                                <div class="flex items-center gap-2 shrink-0">
+                                                    <span class="text-gray-400 text-[11px]">{{ $item->transaction->checked_out_at->format('g:i A') }}</span>
+                                                    @if (auth()->user()->isLabHead() || auth()->user()->isStudentAssistant())
+                                                        <a href="{{ route('scan.return', $item->transaction->id) }}" class="text-[11px] font-semibold text-orange-600 hover:underline">
+                                                            ↩ Return
+                                                        </a>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            {{-- ═════════════════════════════════════════════════════════════════ --}}
+            {{-- ACTIVITY LOGS & UTILIZATION (TABBED)                             --}}
+            {{-- ═════════════════════════════════════════════════════════════════ --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
                  x-data="{ activeTab: 'rooms' }">
                 <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h3 class="font-semibold text-gray-900 dark:text-gray-100">
+                        <h3 class="font-bold text-gray-900 dark:text-gray-100 text-sm sm:text-base">
                             📋 Activity Logs & Utilization
                             @if (auth()->user()->isFaculty())
                                 <span class="text-xs font-normal text-gray-400 ml-1">(your activity)</span>
                             @endif
                         </h3>
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                            Separated logs for facility usage and equipment borrowing
+                            Separated chronological logs for facility occupancy and equipment loans
                         </p>
                     </div>
 
                     {{-- Tabs: Rooms vs Tools vs All --}}
-                    <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-lg">
+                    <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
                         <button type="button"
                                 @click="activeTab = 'rooms'"
                                 :class="activeTab === 'rooms' ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 font-bold shadow-xs' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'"
-                                class="px-3 py-1 rounded-md text-xs transition flex items-center gap-1.5">
-                            <span>🏫</span>
-                            <span>Room Checkouts</span>
+                                class="px-3 py-1 rounded-lg text-xs transition flex items-center gap-1.5">
+                            <span>🏫 Rooms</span>
                             <span class="text-[10px] py-0.2 px-1.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                                 {{ $recentRoomTransactions->count() }}
                             </span>
@@ -384,9 +651,8 @@
                         <button type="button"
                                 @click="activeTab = 'tools'"
                                 :class="activeTab === 'tools' ? 'bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 font-bold shadow-xs' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'"
-                                class="px-3 py-1 rounded-md text-xs transition flex items-center gap-1.5">
-                            <span>🔧</span>
-                            <span>Tool Borrowings</span>
+                                class="px-3 py-1 rounded-lg text-xs transition flex items-center gap-1.5">
+                            <span>🔧 Tools</span>
                             <span class="text-[10px] py-0.2 px-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
                                 {{ $recentToolTransactions->count() }}
                             </span>
@@ -394,9 +660,8 @@
                         <button type="button"
                                 @click="activeTab = 'all'"
                                 :class="activeTab === 'all' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-bold shadow-xs' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'"
-                                class="px-3 py-1 rounded-md text-xs transition flex items-center gap-1.5">
-                            <span>📋</span>
-                            <span>All Feed</span>
+                                class="px-3 py-1 rounded-lg text-xs transition flex items-center gap-1.5">
+                            <span>📋 All Feed</span>
                         </button>
                     </div>
                 </div>
@@ -412,19 +677,19 @@
                             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-700/50">
                                     <tr>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">#</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Room</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Faculty / Borrower</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Department</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject / Purpose</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time In</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                                        <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">#</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Room</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Faculty / Borrower</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Department</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Subject / Purpose</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Time In</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                                        <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                                     @foreach ($recentRoomTransactions as $tx)
-                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
                                             <td class="px-5 py-3 text-xs text-gray-400">#{{ $tx->id }}</td>
                                             <td class="px-5 py-3 text-sm font-bold text-gray-900 dark:text-gray-100">
                                                 {{ $tx->room?->name ?? 'Room' }}
@@ -454,15 +719,15 @@
                                             </td>
                                             <td class="px-5 py-3">
                                                 @if ($tx->status === 'open')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">In Use</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">In Use</span>
                                                 @elseif ($tx->status === 'returned')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Vacated</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">Vacated</span>
                                                 @else
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Overdue</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 animate-pulse">Overdue</span>
                                                 @endif
                                             </td>
                                             <td class="px-5 py-3 text-right text-xs">
-                                                <a href="{{ route('admin.transactions.show', $tx->id) }}" class="text-blue-600 dark:text-blue-400 hover:underline">
+                                                <a href="{{ route('admin.transactions.show', $tx->id) }}" class="font-medium text-blue-600 dark:text-blue-400 hover:underline">
                                                     View
                                                 </a>
                                             </td>
@@ -485,19 +750,19 @@
                             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-700/50">
                                     <tr>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">#</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Equipment / Tools</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Borrower</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Department</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject / Purpose</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Borrowed At</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                                        <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">#</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Equipment / Tools</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Borrower</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Department</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Subject / Purpose</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Borrowed At</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                                        <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                                     @foreach ($recentToolTransactions as $tx)
-                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
                                             <td class="px-5 py-3 text-xs text-gray-400">#{{ $tx->id }}</td>
                                             <td class="px-5 py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                                                 @if ($tx->items->isNotEmpty())
@@ -532,17 +797,17 @@
                                             </td>
                                             <td class="px-5 py-3">
                                                 @if ($tx->status === 'open')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Out</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Out</span>
                                                 @elseif ($tx->status === 'partially_returned')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">Partial</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">Partial</span>
                                                 @elseif ($tx->status === 'returned')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Returned</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">Returned</span>
                                                 @else
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Overdue</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 animate-pulse">Overdue</span>
                                                 @endif
                                             </td>
                                             <td class="px-5 py-3 text-right text-xs">
-                                                <a href="{{ route('admin.transactions.show', $tx->id) }}" class="text-blue-600 dark:text-blue-400 hover:underline">
+                                                <a href="{{ route('admin.transactions.show', $tx->id) }}" class="font-medium text-blue-600 dark:text-blue-400 hover:underline">
                                                     View
                                                 </a>
                                             </td>
@@ -565,23 +830,23 @@
                             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-700/50">
                                     <tr>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Item / Facility</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Borrower</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Department</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
-                                        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                                        <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Item / Facility</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Borrower</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Department</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Time</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                                        <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                                     @foreach ($recentTransactions as $tx)
-                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
                                             <td class="px-5 py-3 text-xs">
                                                 @if ($tx->isRoom())
-                                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Room</span>
+                                                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Room</span>
                                                 @else
-                                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Tool</span>
+                                                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Tool</span>
                                                 @endif
                                             </td>
                                             <td class="px-5 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -600,17 +865,17 @@
                                             </td>
                                             <td class="px-5 py-3">
                                                 @if ($tx->status === 'open')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Open</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">In Use</span>
                                                 @elseif ($tx->status === 'partially_returned')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">Partial</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">Partial</span>
                                                 @elseif ($tx->status === 'returned')
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Returned</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">Returned</span>
                                                 @else
-                                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Overdue</span>
+                                                    <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 animate-pulse">Overdue</span>
                                                 @endif
                                             </td>
                                             <td class="px-5 py-3 text-right text-xs">
-                                                <a href="{{ route('admin.transactions.show', $tx->id) }}" class="text-blue-600 dark:text-blue-400 hover:underline">
+                                                <a href="{{ route('admin.transactions.show', $tx->id) }}" class="font-medium text-blue-600 dark:text-blue-400 hover:underline">
                                                     Details
                                                 </a>
                                             </td>
@@ -626,7 +891,7 @@
                 <div class="px-5 py-3 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-xs">
                     <span class="text-gray-500 dark:text-gray-400">Showing recent 10 transactions per category</span>
                     @if (auth()->user()->isLabHead() || auth()->user()->isStudentAssistant())
-                        <a href="{{ route('admin.transactions.index') }}" class="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                        <a href="{{ route('admin.transactions.index') }}" class="font-bold text-blue-600 dark:text-blue-400 hover:underline">
                             View Complete Transaction Archive & Filter by Department →
                         </a>
                     @endif

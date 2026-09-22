@@ -35,7 +35,7 @@
                  ['tool_id' => old('tool_id', ''), 'quantity' => (int) old('quantity', 1)]
              ])) }},
              roomToolRows: {{ Js::from(old('room_tools', [])) }},
-             selectedRoomId: '{{ old('room_id', '') }}',
+             selectedRoomId: '{{ old('room_id', request('room_id', '')) }}',
              occupiedRooms: {{ Js::from($rooms->filter(fn($r) => $r->isOccupied())->mapWithKeys(fn($r) => [
                  $r->id => [
                      'id' => $r->id,
@@ -326,7 +326,7 @@
                                             @endphp
                                             <option value="{{ $r->id }}"
                                                     data-department="{{ $r->department }}"
-                                                    {{ old('room_id') == $r->id ? 'selected' : '' }}>
+                                                    {{ old('room_id', request('room_id')) == $r->id ? 'selected' : '' }}>
                                                 {{ $isOcc ? '🔴 [IN USE: ' . Str::limit($curr?->borrower_name ?? 'Active', 18) . '] ' : ($r->isLab() ? '🔬 ' : '📖 ') }}{{ $r->name }} — {{ $r->isLab() ? 'Laboratory' : 'Lecture' }}{{ $isOcc ? ' (Occupied)' : ' (Available)' }}
                                             </option>
                                         @endforeach

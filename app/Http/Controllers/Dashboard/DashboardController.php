@@ -26,16 +26,31 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        // ── Room Metrics ───────────────────────────────────────────────────
-        $openRoomCount    = Transaction::open()->rooms()->count();
-        $overdueRoomCount = Transaction::overdue()->rooms()->count();
-        $todayRoomCount   = Transaction::rooms()->whereDate('checked_out_at', today())->count();
-        $totalRooms       = Room::count();
+        // ── Room Metrics & Live Room Board ─────────────────────────────────
+        $allRooms = Room::with([
+            'transactions' => fn ($q) => $q
+                ->whereIn('status', ['open', 'partially_returned'])
+                ->with(['items.tool'])
+                ->latest('checked_out_at'),
+        ])->orderByRaw("
+            CASE 
+                WHEN name LIKE 'LAB%' AND name NOT LIKE '%Office%' THEN 0 
+                WHEN name LIKE 'LEC%' THEN 1 
+                ELSE 2 
+            END,
+            CAST(REGEXP_SUBSTR(name, '[0-9]+') AS UNSIGNED),
+            name
+        ")->get();
 
-        // Available rooms: rooms with no open checkout right now
-        $availableRoomsCount = Room::whereDoesntHave(
-            'transactions', fn ($q) => $q->where('status', 'open')
-        )->count();
+        $occupiedRooms       = $allRooms->filter(fn ($r) => $r->transactions->isNotEmpty())->values();
+        $vacantRooms         = $allRooms->filter(fn ($r) => $r->transactions->isEmpty())->values();
+        $openRoomCount       = $occupiedRooms->count();
+        $availableRoomsCount = $vacantRooms->count();
+        $totalRooms          = $allRooms->count();
+        $overdueRoomCount    = Transaction::overdue()->rooms()->count();
+        $todayRoomCount      = Transaction::rooms()->whereDate('checked_out_at', today())->count();
+        $roomUtilizationRate = $totalRooms > 0 ? (int) round(($openRoomCount / $totalRooms) * 100) : 0;
+        $floors              = $allRooms->pluck('location')->filter()->unique()->values();
 
         // ── Tool Metrics ───────────────────────────────────────────────────
         $openToolCount    = Transaction::active()->tools()->count();
@@ -59,16 +74,6 @@ class DashboardController extends Controller
             ->whereNotNull('department')
             ->groupBy('department')
             ->pluck('total_active', 'department');
-
-        // ── Current Room Occupancy ─────────────────────────────────────────
-        $occupiedRooms = Room::whereHas(
-            'transactions', fn ($q) => $q->where('status', 'open')
-        )->with([
-            'transactions' => fn ($q) => $q
-                ->where('status', 'open')
-                ->latest('checked_out_at'),
-        ])->orderByRaw("CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END, name")
-          ->get();
 
         // ── Current Borrowed Tools (Direct or Multi-item) ──────────────────
         $borrowedTools = Tool::where(function ($query) {
@@ -120,6 +125,10 @@ class DashboardController extends Controller
             'todayRoomCount',
             'totalRooms',
             'availableRoomsCount',
+            'roomUtilizationRate',
+            'allRooms',
+            'vacantRooms',
+            'floors',
             'openToolCount',
             'overdueToolCount',
             'todayToolCount',
