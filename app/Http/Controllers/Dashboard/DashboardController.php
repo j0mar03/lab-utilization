@@ -91,6 +91,14 @@ class DashboardController extends Controller
             ->latest('checked_out_at')
             ->get();
 
+        // ── Stale Room Transactions (Unclosed from past days) ──────────────
+        $staleRoomTransactions = Transaction::stale()
+            ->rooms()
+            ->with(['room'])
+            ->latest('checked_out_at')
+            ->get();
+        $staleRoomCount = $staleRoomTransactions->count();
+
         // ── Recent Activity (Role-aware & Separated) ──────────────────────
         $roomQuery = Transaction::rooms()
             ->with(['room'])
@@ -138,6 +146,8 @@ class DashboardController extends Controller
             'occupiedRooms',
             'borrowedTools',
             'overdueTransactions',
+            'staleRoomTransactions',
+            'staleRoomCount',
             'recentRoomTransactions',
             'recentToolTransactions',
             'recentTransactions'

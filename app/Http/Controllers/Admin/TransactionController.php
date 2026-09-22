@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Services\TelegramService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -236,14 +237,16 @@ class TransactionController extends Controller
                 ->latest('checked_out_at')
                 ->first();
 
-            if ($activeRoomTx && ! $timeOut) {
+            $autoVacatedPrevious = false;
+            if ($activeRoomTx) {
                 $conflictResolution = $request->input('conflict_resolution', 'end_previous');
 
                 if ($conflictResolution === 'end_previous') {
                     // Automatically close out previous active session upon handover
+                    $prevReturnTime = $timeIn ?: now();
                     $activeRoomTx->update([
                         'status'      => 'returned',
-                        'returned_at' => $timeIn,
+                        'returned_at' => $prevReturnTime,
                         'notes'       => trim(($activeRoomTx->notes ? $activeRoomTx->notes . "\n" : '') . "[Handover: Auto-returned upon handover to {$validated['borrower_name']}]"),
                     ]);
 
@@ -253,14 +256,15 @@ class TransactionController extends Controller
                             $prevItem->update([
                                 'quantity_returned' => $prevItem->quantity_borrowed,
                                 'status'            => 'returned',
-                                'returned_at'       => $timeIn,
+                                'returned_at'       => $prevReturnTime,
                             ]);
                         }
                     }
 
                     $activeRoomTx->load(['room', 'tool', 'items.tool']);
                     $this->telegram->sendReturnNotification($activeRoomTx);
-                } elseif ($conflictResolution !== 'allow_concurrent') {
+                    $autoVacatedPrevious = true;
+                } elseif ($conflictResolution !== 'allow_concurrent' && ! $timeOut) {
                     return back()->withErrors([
                         'room_id' => "Room '{$activeRoomTx->room?->name}' is currently in use by {$activeRoomTx->borrower_name} (checked out at {$activeRoomTx->checked_out_at->format('M d, g:i A')}). Please select 'End previous session' or 'Allow shared occupancy'."
                     ])->withInput();
@@ -411,6 +415,10 @@ class TransactionController extends Controller
             }
         }
 
+        if (isset($autoVacatedPrevious) && $autoVacatedPrevious) {
+            $msg .= " Previous unclosed session #{$activeRoomTx->id} ({$activeRoomTx->borrower_name}) was automatically marked as returned.";
+        }
+
         return redirect()->route('admin.transactions.index')
             ->with('success', $msg);
     }
@@ -420,9 +428,17 @@ class TransactionController extends Controller
      * Supports returning partial quantities or all remaining items.
      * POST /admin/transactions/{transaction}/return
      */
-    public function markReturned(Request $request, Transaction $transaction): RedirectResponse
+    public function markReturned(Request $request, Transaction $transaction): RedirectResponse|JsonResponse
     {
         if ($transaction->status === 'returned') {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'This transaction is already marked as fully returned.',
+                    'transaction_id' => $transaction->id,
+                    'room_id' => $transaction->room_id,
+                ]);
+            }
             return back()->with('info', 'This transaction is already marked as fully returned.');
         }
 
@@ -436,7 +452,16 @@ class TransactionController extends Controller
             $transaction->load(['room', 'tool']);
             $this->telegram->sendReturnNotification($transaction);
 
-            return back()->with('success', "Room utilization #{$transaction->id} ({$transaction->room?->name}) has been marked as returned.");
+            $msg = "Room utilization #{$transaction->id} ({$transaction->room?->name}) has been marked as returned.";
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success'        => true,
+                    'message'        => $msg,
+                    'transaction_id' => $transaction->id,
+                    'room_id'        => $transaction->room_id,
+                ]);
+            }
+            return back()->with('success', $msg);
         }
 
         // Tool transaction: multi-tool and partial return support
@@ -496,6 +521,9 @@ class TransactionController extends Controller
                 ]);
                 $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Partial return recorded ({$totalNewlyReturned} unit(s) returned). Remaining tools remain borrowed.";
             } else {
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => false, 'message' => 'No tool quantities were specified to return.'], 422);
+                }
                 return back()->with('warning', 'No tool quantities were specified to return.');
             }
         } else {
@@ -510,7 +538,63 @@ class TransactionController extends Controller
         $transaction->load(['room', 'tool', 'items.tool']);
         $this->telegram->sendReturnNotification($transaction);
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success'        => true,
+                'message'        => $msg,
+                'transaction_id' => $transaction->id,
+                'room_id'        => $transaction->room_id,
+            ]);
+        }
+
         return back()->with('success', $msg);
+    }
+
+    /**
+     * Bulk vacate stale / abandoned room transactions from previous calendar days or long overdue.
+     * POST /admin/transactions/vacate-stale
+     */
+    public function vacateStaleSessions(Request $request): RedirectResponse
+    {
+        $staleTransactions = Transaction::whereIn('status', ['open', 'partially_returned', 'overdue'])
+            ->whereNotNull('room_id')
+            ->where(function ($query) {
+                $query->where('checked_out_at', '<', now()->startOfDay())
+                      ->orWhere(function ($q) {
+                          $q->whereNotNull('expected_return_at')
+                            ->where('expected_return_at', '<', now()->subHours(6));
+                      });
+            })
+            ->with(['room', 'items'])
+            ->get();
+
+        $count = 0;
+        foreach ($staleTransactions as $tx) {
+            $returnTime = $tx->expected_return_at ?? $tx->checked_out_at->addHours(3);
+            if ($returnTime->isFuture() || $returnTime->gt(now())) {
+                $returnTime = now();
+            }
+
+            $tx->update([
+                'status'      => 'returned',
+                'returned_at' => $returnTime,
+                'notes'       => trim(($tx->notes ? $tx->notes . "\n" : '') . '[Auto-vacated: Stale session from past date marked returned]'),
+            ]);
+
+            foreach ($tx->items as $item) {
+                if ($item->status !== 'returned') {
+                    $item->update([
+                        'quantity_returned' => $item->quantity_borrowed,
+                        'status'            => 'returned',
+                        'returned_at'       => $returnTime,
+                    ]);
+                }
+            }
+
+            $count++;
+        }
+
+        return back()->with('success', "Successfully vacated {$count} stale session(s). All affected rooms are now marked available.");
     }
 
     /**

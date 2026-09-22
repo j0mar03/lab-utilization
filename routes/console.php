@@ -22,3 +22,10 @@ Schedule::command('lab:check-overdue')
     ->withoutOverlapping()    // skip if previous run is still going
     ->runInBackground()       // non-blocking
     ->appendOutputTo(storage_path('logs/overdue-check.log'));
+
+// Automatically vacate forgotten / stale room sessions each night at 11:00 PM (building close)
+Schedule::command('lab:close-stale-sessions')
+    ->dailyAt('23:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/stale-sessions.log'));

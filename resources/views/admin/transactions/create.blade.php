@@ -43,7 +43,9 @@
                      'borrower_name' => $r->currentTransaction()?->borrower_name,
                      'subject' => $r->currentTransaction()?->subject,
                      'checked_out_at' => $r->currentTransaction()?->checked_out_at?->format('M d, g:i A'),
+                     'checked_out_diff' => $r->currentTransaction()?->checked_out_at?->diffForHumans(),
                      'transaction_id' => $r->currentTransaction()?->id,
+                     'is_stale' => $r->currentTransaction()?->isStale() ?? false,
                  ]
              ])) }},
              computerLabIds: {{ Js::from($rooms->filter(fn($r) => $r->isComputerLab())->pluck('id')->map(fn($id) => (int)$id)) }},
@@ -53,6 +55,46 @@
              },
              get currentOccupancy() {
                  return this.selectedRoomId && this.occupiedRooms[this.selectedRoomId] ? this.occupiedRooms[this.selectedRoomId] : null;
+             },
+             vacatingRoom: false,
+             async vacateCurrentRoom() {
+                 if (!this.currentOccupancy || this.vacatingRoom) return;
+                 if (!confirm('Vacate ' + this.currentOccupancy.name + ' now and mark session #' + this.currentOccupancy.transaction_id + ' as returned?')) return;
+                 
+                 this.vacatingRoom = true;
+                 try {
+                     const res = await fetch('/admin/transactions/' + this.currentOccupancy.transaction_id + '/return', {
+                         method: 'POST',
+                         headers: {
+                             'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                             'Accept': 'application/json',
+                             'X-Requested-With': 'XMLHttpRequest'
+                         }
+                     });
+                     const data = await res.json();
+                     if (res.ok && data.success) {
+                         const freedRoomId = this.selectedRoomId;
+                         delete this.occupiedRooms[freedRoomId];
+                         
+                         const sel = document.getElementById('room_id');
+                         if (sel) {
+                             const opt = sel.querySelector('option[value=\"' + freedRoomId + '\"]');
+                             if (opt) {
+                                 opt.textContent = opt.textContent.replace(/🔴\s*\[IN USE:[^\]]+\]\s*/g, '')
+                                                                  .replace(/⚠️\s*\[UNCLOSED:[^\]]+\]\s*/g, '')
+                                                                  .replace(/\(Occupied\)|\(Vacant \/ Unclosed Past Session\)/g, '(Available)');
+                             }
+                         }
+                         alert('✓ ' + (data.message || 'Room marked as returned and is now vacant.'));
+                     } else {
+                         alert('Error vacating room: ' + (data.message || 'Please try again.'));
+                     }
+                 } catch (e) {
+                     console.error(e);
+                     alert('Network error while vacating room.');
+                 } finally {
+                     this.vacatingRoom = false;
+                 }
              },
 
              addToolRow() {
@@ -343,11 +385,19 @@
                                             @php
                                                 $isOcc = $r->isOccupied();
                                                 $curr = $r->currentTransaction();
+                                                $isStale = $curr?->isStale() ?? false;
                                             @endphp
                                             <option value="{{ $r->id }}"
                                                     data-department="{{ $r->department }}"
                                                     {{ old('room_id', request('room_id')) == $r->id ? 'selected' : '' }}>
-                                                {{ $isOcc ? '🔴 [IN USE: ' . Str::limit($curr?->borrower_name ?? 'Active', 18) . '] ' : ($r->isComputerLab() ? '💻 ' : ($r->isEngineeringLab() ? '⚙️ ' : ($r->isOffice() ? '🏢 ' : '📖 '))) }}{{ $r->name }} — {{ $r->isComputerLab() ? 'Computer Lab' : ($r->isEngineeringLab() ? 'Engineering Lab' : ($r->isOffice() ? 'Office' : 'Lecture')) }}{{ $isOcc ? ' (Occupied)' : ' (Available)' }}
+                                                @if ($isOcc && $isStale)
+                                                    ⚠️ [UNCLOSED: {{ Str::limit($curr?->borrower_name ?? 'Past Session', 14) }} ({{ $curr->checked_out_at->format('M d') }})] 
+                                                @elseif ($isOcc)
+                                                    🔴 [IN USE: {{ Str::limit($curr?->borrower_name ?? 'Active', 14) }}] 
+                                                @else
+                                                    {{ $r->isComputerLab() ? '💻 ' : ($r->isEngineeringLab() ? '⚙️ ' : ($r->isOffice() ? '🏢 ' : '📖 ')) }}
+                                                @endif
+                                                {{ $r->name }} — {{ $r->isComputerLab() ? 'Computer Lab' : ($r->isEngineeringLab() ? 'Engineering Lab' : ($r->isOffice() ? 'Office' : 'Lecture')) }}{{ $isOcc ? ($isStale ? ' (Vacant / Unclosed Past Session)' : ' (Occupied)') : ' (Available)' }}
                                             </option>
                                         @endforeach
                                     </optgroup>
@@ -357,35 +407,63 @@
 
                             {{-- Real-time Occupancy Conflict Alert --}}
                             <template x-if="currentOccupancy">
-                                <div class="mt-2.5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60 space-y-2.5">
-                                    <div class="flex items-start gap-2.5">
-                                        <span class="text-xl">⚠️</span>
-                                        <div class="text-xs text-amber-900 dark:text-amber-200">
-                                            <p class="font-bold text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
-                                                <span>Room is Currently In Use</span>
-                                                <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 font-bold">
-                                                    Session #<span x-text="currentOccupancy.transaction_id"></span>
-                                                </span>
-                                            </p>
-                                            <p class="mt-0.5">
-                                                Currently checked out to <strong class="font-semibold" x-text="currentOccupancy.borrower_name"></strong>
-                                                <template x-if="currentOccupancy.subject">
-                                                    <span>for <span class="italic font-medium" x-text="currentOccupancy.subject"></span></span>
-                                                </template>
-                                                (since <span x-text="currentOccupancy.checked_out_at"></span>).
-                                            </p>
+                                <div :class="currentOccupancy.is_stale ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700/60' : 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700/60'"
+                                     class="mt-2.5 p-3.5 rounded-xl border space-y-2.5">
+                                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                        <div class="flex items-start gap-2.5">
+                                            <span class="text-xl shrink-0" x-text="currentOccupancy.is_stale ? '⚠️' : '🔴'"></span>
+                                            <div class="text-xs" :class="currentOccupancy.is_stale ? 'text-amber-900 dark:text-amber-200' : 'text-red-900 dark:text-red-200'">
+                                                <p class="font-bold text-sm flex items-center gap-2"
+                                                   :class="currentOccupancy.is_stale ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'">
+                                                    <span x-text="currentOccupancy.is_stale ? 'Unclosed Session from Past Date (Room is Vacant)' : 'Room is Currently In Use'"></span>
+                                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                                                          :class="currentOccupancy.is_stale ? 'bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200' : 'bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-200'">
+                                                        Session #<span x-text="currentOccupancy.transaction_id"></span>
+                                                    </span>
+                                                </p>
+                                                <p class="mt-0.5 leading-relaxed">
+                                                    <template x-if="currentOccupancy.is_stale">
+                                                        <span>
+                                                            This room was checked out by <strong class="font-semibold" x-text="currentOccupancy.borrower_name"></strong>
+                                                            on <span class="font-semibold" x-text="currentOccupancy.checked_out_at"></span> (<span x-text="currentOccupancy.checked_out_diff"></span>) and was never formally marked returned in the system. The physical room is vacant.
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!currentOccupancy.is_stale">
+                                                        <span>
+                                                            Currently checked out to <strong class="font-semibold" x-text="currentOccupancy.borrower_name"></strong>
+                                                            <template x-if="currentOccupancy.subject">
+                                                                <span>for <span class="italic font-medium" x-text="currentOccupancy.subject"></span></span>
+                                                            </template>
+                                                            (since <span x-text="currentOccupancy.checked_out_at"></span>).
+                                                        </span>
+                                                    </template>
+                                                </p>
+                                            </div>
                                         </div>
+
+                                        {{-- 1-Click Quick Vacate Button --}}
+                                        <button type="button"
+                                                @click="vacateCurrentRoom()"
+                                                :disabled="vacatingRoom"
+                                                class="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                                                :class="currentOccupancy.is_stale ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'">
+                                            <span x-show="!vacatingRoom">⚡ Vacate & Free Room Now</span>
+                                            <span x-show="vacatingRoom">Vacating...</span>
+                                        </button>
                                     </div>
 
-                                    <div class="pt-2 border-t border-amber-200 dark:border-amber-800/60 space-y-1.5">
-                                        <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-amber-950 dark:text-amber-200">
+                                    <div class="pt-2 border-t space-y-1.5"
+                                         :class="currentOccupancy.is_stale ? 'border-amber-200 dark:border-amber-800/60' : 'border-red-200 dark:border-red-800/60'">
+                                        <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold"
+                                               :class="currentOccupancy.is_stale ? 'text-amber-950 dark:text-amber-200' : 'text-red-950 dark:text-red-200'">
                                             <input type="radio" name="conflict_resolution" value="end_previous" checked
-                                                   class="text-amber-600 focus:ring-amber-500">
-                                            <span>🔄 Automatically End & Return previous session (Clean handover to new instructor)</span>
+                                                   class="text-blue-600 focus:ring-blue-500">
+                                            <span>🔄 Automatically End & Return previous session upon checkout (Clean handover to new instructor)</span>
                                         </label>
-                                        <label class="flex items-center gap-2 cursor-pointer text-xs text-amber-800 dark:text-amber-300">
+                                        <label class="flex items-center gap-2 cursor-pointer text-xs"
+                                               :class="currentOccupancy.is_stale ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'">
                                             <input type="radio" name="conflict_resolution" value="allow_concurrent"
-                                                   class="text-amber-600 focus:ring-amber-500">
+                                                   class="text-blue-600 focus:ring-blue-500">
                                             <span>👥 Allow Concurrent / Shared Room Occupancy (Both sessions will remain active)</span>
                                         </label>
                                     </div>

@@ -209,6 +209,26 @@ class Transaction extends Model
         return $this->hasMany(NotificationLog::class);
     }
 
+    /**
+     * Check if an active session is stale (abandoned from a previous day or overdue by > 6 hours).
+     */
+    public function isStale(): bool
+    {
+        if (! in_array($this->status, ['open', 'partially_returned', 'overdue'])) {
+            return false;
+        }
+
+        if ($this->checked_out_at && $this->checked_out_at->lt(now()->startOfDay())) {
+            return true;
+        }
+
+        if ($this->expected_return_at && $this->expected_return_at->lt(now()->subHours(6))) {
+            return true;
+        }
+
+        return false;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Scopes
     // ─────────────────────────────────────────────────────────────────────────
@@ -228,9 +248,28 @@ class Transaction extends Model
         return $query->whereIn('status', ['open', 'partially_returned', 'overdue']);
     }
 
+    public function scopeStale($query)
+    {
+        return $query->whereIn('status', ['open', 'partially_returned', 'overdue'])
+            ->where(function ($q) {
+                $q->where('checked_out_at', '<', now()->startOfDay())
+                  ->orWhere(function ($sub) {
+                      $sub->whereNotNull('expected_return_at')
+                          ->where('expected_return_at', '<', now()->subHours(6));
+                  });
+            });
+    }
+
     public function scopeOverdue($query)
     {
-        return $query->where('status', 'overdue');
+        return $query->where(function ($q) {
+            $q->where('status', 'overdue')
+              ->orWhere(function ($sub) {
+                  $sub->whereIn('status', ['open', 'partially_returned'])
+                      ->whereNotNull('expected_return_at')
+                      ->where('expected_return_at', '<', now());
+              });
+        });
     }
 
     public function scopeReturned($query)

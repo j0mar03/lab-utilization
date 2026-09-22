@@ -64,10 +64,19 @@
                                             </span>
                                         </span>
                                         <div class="flex items-center gap-3 mt-1 sm:mt-0 shrink-0">
-                                            <a href="{{ route('scan.return', $tx->id) }}"
-                                               class="font-semibold text-orange-700 dark:text-orange-400 hover:underline">
-                                                ↩ Mark Free
-                                            </a>
+                                            @if (Auth::user()->isLabHead() || Auth::user()->isStudentAssistant())
+                                                <form method="POST" action="{{ route('admin.transactions.return', $tx->id) }}" onsubmit="return confirm('Mark transaction #{{ $tx->id }} as returned?');">
+                                                    @csrf
+                                                    <button type="submit" class="font-semibold text-orange-700 dark:text-orange-400 hover:underline text-xs sm:text-sm bg-transparent border-0 p-0 cursor-pointer">
+                                                        ↩ Mark Free
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <a href="{{ route('scan.return', $tx->id) }}"
+                                                   class="font-semibold text-orange-700 dark:text-orange-400 hover:underline">
+                                                    ↩ Mark Free
+                                                </a>
+                                            @endif
                                             @can('admin')
                                                 <a href="{{ route('admin.transactions.show', $tx->id) }}"
                                                    class="text-red-600 dark:text-red-400 hover:underline font-medium">
@@ -79,6 +88,34 @@
                                 @endforeach
                             </div>
                         </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ── Stale / Unclosed Past Sessions Warning ────────────────── --}}
+            @if (isset($staleRoomCount) && $staleRoomCount > 0)
+                <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 shadow-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-start sm:items-center gap-3">
+                            <span class="text-2xl shrink-0">🧹</span>
+                            <div>
+                                <h4 class="text-sm font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                                    <span>{{ $staleRoomCount }} Unclosed Room Session(s) from Previous Days</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 font-bold">Action Recommended</span>
+                                </h4>
+                                <p class="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5">
+                                    These sessions were left unclosed after classes ended on past days, causing rooms to appear occupied. Clear them to restore rooms to vacant.
+                                </p>
+                            </div>
+                        </div>
+                        @if (Auth::user()->isLabHead() || Auth::user()->isStudentAssistant())
+                            <form method="POST" action="{{ route('admin.transactions.vacate-stale') }}" onsubmit="return confirm('Vacate all {{ $staleRoomCount }} stale room session(s) from previous days? All affected rooms will become vacant immediately.');">
+                                @csrf
+                                <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer shrink-0">
+                                    <span>⚡ Vacate All Stale Sessions</span>
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @endif
@@ -465,8 +502,12 @@
                                             </span>
                                         </div>
 
-                                        {{-- Overdue Warning Badge --}}
-                                        @if ($activeTx->isOverdue())
+                                        {{-- Overdue or Stale Warning Badge --}}
+                                        @if ($activeTx->isStale())
+                                            <div class="text-[10px] font-bold text-amber-800 dark:text-amber-200 bg-amber-200/90 dark:bg-amber-900/80 px-2 py-0.5 rounded text-center">
+                                                ⚠️ UNCLOSED PAST SESSION ({{ $activeTx->checked_out_at->format('M d') }})
+                                            </div>
+                                        @elseif ($activeTx->isOverdue())
                                             <div class="text-[10px] font-bold text-red-700 dark:text-red-300 bg-red-200/90 dark:bg-red-900/80 px-2 py-0.5 rounded text-center animate-pulse">
                                                 ⚠️ OVERDUE (due {{ $activeTx->expected_return_at->diffForHumans() }})
                                             </div>
@@ -510,10 +551,13 @@
                                 @if ($isOcc)
                                     @if (Auth::user()->isLabHead() || Auth::user()->isStudentAssistant())
                                         <div class="flex items-center justify-between gap-2">
-                                            <a href="{{ route('scan.return', $activeTx->id) }}"
-                                               class="flex-1 text-center py-1.5 px-2 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition">
-                                                ↩ Vacate Room
-                                            </a>
+                                            <form method="POST" action="{{ route('admin.transactions.return', $activeTx->id) }}" class="flex-1" onsubmit="return confirm('Vacate {{ $room->name }} and mark session #{{ $activeTx->id }} as returned?');">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="w-full text-center py-1.5 px-2 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white shadow-xs transition cursor-pointer">
+                                                    ↩ Vacate Room
+                                                </button>
+                                            </form>
                                             <a href="{{ route('admin.transactions.show', $activeTx->id) }}"
                                                class="py-1.5 px-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0">
                                                 Details →
@@ -614,9 +658,12 @@
                                             <div class="flex items-center gap-2 shrink-0">
                                                 <span class="text-gray-400 text-[11px]">{{ $tx->checked_out_at->format('g:i A') }}</span>
                                                 @if (auth()->user()->isLabHead() || auth()->user()->isStudentAssistant())
-                                                    <a href="{{ route('scan.return', $tx->id) }}" class="text-[11px] font-semibold text-orange-600 hover:underline">
-                                                        ↩ Return
-                                                    </a>
+                                                    <form method="POST" action="{{ route('admin.transactions.return', $tx->id) }}" class="inline" onsubmit="return confirm('Mark transaction #{{ $tx->id }} as returned?');">
+                                                        @csrf
+                                                        <button type="submit" class="text-[11px] font-semibold text-orange-600 hover:underline bg-transparent border-0 p-0 cursor-pointer">
+                                                            ↩ Return
+                                                        </button>
+                                                    </form>
                                                 @endif
                                             </div>
                                         </div>
@@ -637,9 +684,12 @@
                                                 <div class="flex items-center gap-2 shrink-0">
                                                     <span class="text-gray-400 text-[11px]">{{ $item->transaction->checked_out_at->format('g:i A') }}</span>
                                                     @if (auth()->user()->isLabHead() || auth()->user()->isStudentAssistant())
-                                                        <a href="{{ route('scan.return', $item->transaction->id) }}" class="text-[11px] font-semibold text-orange-600 hover:underline">
-                                                            ↩ Return
-                                                        </a>
+                                                        <form method="POST" action="{{ route('admin.transactions.return', $item->transaction->id) }}" class="inline" onsubmit="return confirm('Mark transaction #{{ $item->transaction->id }} as returned?');">
+                                                            @csrf
+                                                            <button type="submit" class="text-[11px] font-semibold text-orange-600 hover:underline bg-transparent border-0 p-0 cursor-pointer">
+                                                                ↩ Return
+                                                            </button>
+                                                        </form>
                                                     @endif
                                                 </div>
                                             </div>

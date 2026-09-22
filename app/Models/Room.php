@@ -129,6 +129,14 @@ class Room extends Model
         return $this->currentTransaction() !== null;
     }
 
+    /**
+     * Check if the room's current active transaction is stale (abandoned from previous day / long overdue).
+     */
+    public function hasStaleTransaction(): bool
+    {
+        return $this->currentTransaction()?->isStale() ?? false;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Scopes
     // ─────────────────────────────────────────────────────────────────────────
