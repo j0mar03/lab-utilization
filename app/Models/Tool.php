@@ -107,6 +107,38 @@ class Tool extends Model
     }
 
     /**
+     * How many units are currently overdue.
+     */
+    public function getOverdueQuantityAttribute(): int
+    {
+        $itemsOverdue = (int) TransactionItem::where('tool_id', $this->id)
+            ->where('status', '!=', 'returned')
+            ->whereHas('transaction', function ($q) {
+                $q->overdue();
+            })
+            ->sum(\Illuminate\Support\Facades\DB::raw('quantity_borrowed - quantity_returned'));
+
+        $legacyOverdue = (int) $this->transactions()
+            ->overdue()
+            ->whereDoesntHave('items')
+            ->sum('quantity');
+
+        return $itemsOverdue + $legacyOverdue;
+    }
+
+    /**
+     * Get all active checkouts across direct borrows and room borrows.
+     */
+    public function getActiveCheckoutsAttribute()
+    {
+        return TransactionItem::where('tool_id', $this->id)
+            ->where('status', '!=', 'returned')
+            ->whereHas('transaction', fn($q) => $q->whereIn('status', ['open', 'partially_returned', 'overdue']))
+            ->with(['transaction.room', 'transaction.user'])
+            ->get();
+    }
+
+    /**
      * How many units are available right now.
      * available = total_quantity - currently borrowed
      */

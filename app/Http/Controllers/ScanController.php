@@ -48,7 +48,7 @@ class ScanController extends Controller
         // Find any currently open or overdue transactions for this room
         $openTransactions = $room->transactions()
             ->whereIn('status', ['open', 'partially_returned', 'overdue'])
-            ->with('user')
+            ->with(['user', 'items.tool'])
             ->latest('checked_out_at')
             ->get();
 
@@ -57,6 +57,54 @@ class ScanController extends Controller
         $softwareCatalog = Transaction::SOFTWARE_CATALOG;
 
         return view('scan.room', compact('room', 'openTransactions', 'faculties', 'subjects', 'softwareCatalog'));
+    }
+
+    /**
+     * Direct 1-tap return from room QR code scan.
+     * Returns room and all attached keys, equipment, and accessories together.
+     * POST /scan/room/{room}/return
+     */
+    public function returnRoom(Request $request, Room $room): RedirectResponse
+    {
+        $activeTransactions = $room->transactions()
+            ->whereIn('status', ['open', 'partially_returned', 'overdue'])
+            ->with(['items.tool', 'user'])
+            ->get();
+
+        if ($activeTransactions->isEmpty()) {
+            return redirect()->route('scan.room', $room->id)->with('info', "Room {$room->name} is already marked as vacant.");
+        }
+
+        $lastReturnedTx = null;
+
+        DB::transaction(function () use ($activeTransactions, &$lastReturnedTx) {
+            foreach ($activeTransactions as $tx) {
+                $tx->update([
+                    'status'      => 'returned',
+                    'returned_at' => now(),
+                ]);
+
+                foreach ($tx->items as $item) {
+                    if ($item->status !== 'returned') {
+                        $item->update([
+                            'quantity_returned' => $item->quantity_borrowed,
+                            'status'            => 'returned',
+                            'returned_at'       => now(),
+                        ]);
+                    }
+                }
+
+                $tx->refresh()->load(['room', 'tool', 'items.tool']);
+                $this->telegram->sendReturnNotification($tx);
+                $lastReturnedTx = $tx;
+            }
+        });
+
+        if ($lastReturnedTx) {
+            return redirect()->route('scan.return-success', $lastReturnedTx->id);
+        }
+
+        return redirect()->route('scan.room', $room->id);
     }
 
     /**
@@ -253,7 +301,7 @@ class ScanController extends Controller
      */
     public function showReturn(Transaction $transaction): View
     {
-        $transaction->load(['room', 'tool']);
+        $transaction->load(['room', 'tool', 'items.tool']);
 
         if ($transaction->status === 'returned') {
             return view('scan.already-returned', compact('transaction'));
@@ -277,9 +325,20 @@ class ScanController extends Controller
                 'returned_at' => now(),
                 'status'      => 'returned',
             ]);
+
+            // Automatically return all attached equipment, keys, and accessories together
+            foreach ($transaction->items as $item) {
+                if ($item->status !== 'returned') {
+                    $item->update([
+                        'quantity_returned' => $item->quantity_borrowed,
+                        'status'            => 'returned',
+                        'returned_at'       => now(),
+                    ]);
+                }
+            }
         });
 
-        $transaction->refresh()->load(['room', 'tool']);
+        $transaction->refresh()->load(['room', 'tool', 'items.tool']);
         $this->telegram->sendReturnNotification($transaction);
 
         Log::info('QR return processed', [
@@ -300,7 +359,7 @@ class ScanController extends Controller
      */
     public function success(Transaction $transaction): View
     {
-        $transaction->load(['room', 'tool']);
+        $transaction->load(['room', 'tool', 'items.tool']);
         return view('scan.success', compact('transaction'));
     }
 
@@ -310,7 +369,7 @@ class ScanController extends Controller
      */
     public function returnSuccess(Transaction $transaction): View
     {
-        $transaction->load(['room', 'tool']);
+        $transaction->load(['room', 'tool', 'items.tool']);
         return view('scan.return-success', compact('transaction'));
     }
 }

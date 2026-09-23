@@ -36,6 +36,24 @@
                         <span class="font-semibold text-gray-900">{{ $transaction->tool->name }}</span>
                     </div>
                 @endif
+                @if ($transaction->items->isNotEmpty())
+                    <div class="pt-2 border-t border-gray-100">
+                        <span class="text-xs font-bold text-green-700 uppercase tracking-wide block mb-1">
+                            ✓ Returned Equipment & Keys:
+                        </span>
+                        <ul class="space-y-1 pl-1">
+                            @foreach ($transaction->items as $item)
+                                <li class="text-xs text-gray-800 flex items-center justify-between">
+                                    <span class="flex items-center gap-1.5">
+                                        <span>{{ str_contains(strtolower($item->tool?->name ?? ''), 'key') ? '🔑' : '🔌' }}</span>
+                                        <span>{{ $item->tool?->name ?? 'Tool' }}</span>
+                                    </span>
+                                    <span class="font-bold text-green-700">×{{ $item->quantity_borrowed }} returned</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 <div class="flex justify-between">
                     <span class="text-sm text-gray-500">Checked out</span>
                     <span class="text-gray-700">{{ $transaction->checked_out_at->format('g:i A') }}</span>

@@ -44,21 +44,22 @@
                         <p class="font-bold text-red-800">This transaction is OVERDUE</p>
                         <p class="text-sm text-red-600">Was due {{ $transaction->expected_return_at->diffForHumans() }}</p>
                     </div>
-                    @if ($transaction->items->isEmpty())
-                        <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}" class="ml-auto"
-                              onsubmit="return confirm('Mark this overdue transaction as returned?');">
+                    <div class="ml-auto flex items-center gap-2">
+                        <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}"
+                              onsubmit="return confirm('Mark transaction #{{ $transaction->id }} ({{ $transaction->isRoom() ? 'Room and all tools' : 'all tools' }}) as fully returned?');">
                             @csrf
                             <button type="submit"
                                     class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                                ✓ Mark Returned
+                                ✓ Return All
                             </button>
                         </form>
-                    @else
-                        <a href="#return-section"
-                           class="ml-auto bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                            📦 Process Return ↓
-                        </a>
-                    @endif
+                        @if ($transaction->items->isNotEmpty())
+                            <a href="#return-section"
+                               class="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-2 rounded-lg text-xs font-semibold transition">
+                                📦 Item Breakdown ↓
+                            </a>
+                        @endif
+                    </div>
                 </div>
             @elseif ($transaction->status === 'partially_returned')
                 <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3">
@@ -67,10 +68,20 @@
                         <p class="font-bold text-amber-800">Partially Returned ({{ $transaction->total_quantity_returned }} / {{ $transaction->total_quantity_borrowed }} items returned)</p>
                         <p class="text-xs text-amber-700">Remaining items are still actively checked out to {{ $transaction->borrower_name }}.</p>
                     </div>
-                    <a href="#return-section"
-                       class="ml-auto bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                        📦 Return Remaining ↓
-                    </a>
+                    <div class="ml-auto flex items-center gap-2">
+                        <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}"
+                              onsubmit="return confirm('Return all remaining items for transaction #{{ $transaction->id }}?');">
+                            @csrf
+                            <button type="submit"
+                                    class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition">
+                                ✓ Return All Remaining
+                            </button>
+                        </form>
+                        <a href="#return-section"
+                           class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-2 rounded-lg text-xs font-semibold transition">
+                            📦 Select Units ↓
+                        </a>
+                    </div>
                 </div>
             @elseif ($transaction->status === 'open')
                 <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-4 flex items-center gap-3">
@@ -81,21 +92,22 @@
                             <p class="text-xs text-yellow-700">Due: {{ $transaction->expected_return_at->format('g:i A') }} ({{ $transaction->expected_return_at->diffForHumans() }})</p>
                         @endif
                     </div>
-                    @if ($transaction->items->isEmpty())
-                        <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}" class="ml-auto"
-                              onsubmit="return confirm('Mark this transaction as returned?');">
+                    <div class="ml-auto flex items-center gap-2">
+                        <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}"
+                              onsubmit="return confirm('Mark transaction #{{ $transaction->id }} ({{ $transaction->isRoom() && $transaction->items->isNotEmpty() ? 'Room and all attached tools/keys' : 'all items' }}) as returned?');">
                             @csrf
                             <button type="submit"
                                     class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
                                 ✓ Mark Returned
                             </button>
                         </form>
-                    @else
-                        <a href="#return-section"
-                           class="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                            📦 Check In Tools ↓
-                        </a>
-                    @endif
+                        @if ($transaction->items->isNotEmpty())
+                            <a href="#return-section"
+                               class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-xs font-semibold transition">
+                                📦 Partial Return ↓
+                            </a>
+                        @endif
+                    </div>
                 </div>
             @else
                 <div class="bg-green-50 border border-green-300 rounded-xl p-4 flex items-center gap-3">

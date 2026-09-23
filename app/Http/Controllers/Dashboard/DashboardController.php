@@ -75,13 +75,17 @@ class DashboardController extends Controller
             ->groupBy('department')
             ->pluck('total_active', 'department');
 
-        // ── Current Borrowed Tools (Direct or Multi-item) ──────────────────
+        // ── Current Borrowed Tools (Direct or Multi-item / Room checkouts) ─
         $borrowedTools = Tool::where(function ($query) {
             $query->whereHas('transactions', fn ($q) => $q->whereIn('status', ['open', 'partially_returned', 'overdue']))
-                  ->orWhereHas('transactionItems', fn ($q) => $q->where('status', 'borrowed'));
+                  ->orWhereHas('transactionItems', fn ($q) => $q->where('status', '!=', 'returned')
+                      ->whereHas('transaction', fn ($tq) => $tq->whereIn('status', ['open', 'partially_returned', 'overdue']))
+                  );
         })->with([
             'transactions' => fn ($q) => $q->whereIn('status', ['open', 'partially_returned', 'overdue'])->latest('checked_out_at'),
-            'transactionItems' => fn ($q) => $q->where('status', 'borrowed')->with('transaction'),
+            'transactionItems' => fn ($q) => $q->where('status', '!=', 'returned')
+                ->whereHas('transaction', fn ($tq) => $tq->whereIn('status', ['open', 'partially_returned', 'overdue']))
+                ->with(['transaction.room', 'transaction.user']),
         ])->orderBy('department')->orderBy('category')
           ->get();
 
@@ -101,12 +105,12 @@ class DashboardController extends Controller
 
         // ── Recent Activity (Role-aware & Separated) ──────────────────────
         $roomQuery = Transaction::rooms()
-            ->with(['room'])
+            ->with(['room', 'items.tool'])
             ->latest('checked_out_at')
             ->limit(10);
 
         $toolQuery = Transaction::tools()
-            ->with(['tool', 'items.tool'])
+            ->with(['room', 'tool', 'items.tool'])
             ->latest('checked_out_at')
             ->limit(10);
 

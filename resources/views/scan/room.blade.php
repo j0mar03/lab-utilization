@@ -22,11 +22,11 @@
 
     <div class="px-4 py-6 max-w-lg mx-auto">
 
-        {{-- Current occupancy info --}}
+        {{-- Current occupancy info & Quick Return --}}
         @if ($openTransactions->isNotEmpty())
             @php $primaryActiveTx = $openTransactions->first(); @endphp
             @if ($primaryActiveTx->isOverdue())
-                <div class="mb-5 bg-red-50 border-2 border-red-300 rounded-xl p-3.5 flex items-center justify-between animate-pulse">
+                <div class="mb-4 bg-red-50 border-2 border-red-300 rounded-xl p-3.5 flex items-center justify-between animate-pulse">
                     <div class="flex items-center gap-2">
                         <span class="text-base">🚨</span>
                         <div>
@@ -37,7 +37,7 @@
                     <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-200 text-red-900">Overdue</span>
                 </div>
             @else
-                <div class="mb-5 bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-center justify-between">
+                <div class="mb-4 bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <span class="text-base">🟡</span>
                         <div>
@@ -48,6 +48,50 @@
                     <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900">In Use</span>
                 </div>
             @endif
+
+            {{-- 1-Tap Return Card for returning room + key + accessories --}}
+            <div class="mb-5 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-start gap-2.5">
+                    <span class="text-2xl">↩️</span>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-orange-950 text-sm sm:text-base">
+                            Returning this Room or Handing in Keys?
+                        </h3>
+                        <p class="text-xs text-orange-800 mt-0.5">
+                            Borrower: <strong>{{ $primaryActiveTx->borrower_name }}</strong>
+                            @if ($primaryActiveTx->subject) • <span class="italic">{{ $primaryActiveTx->subject }}</span> @endif
+                        </p>
+
+                        @if ($primaryActiveTx->items->isNotEmpty())
+                            <div class="mt-2 p-2.5 bg-white/90 rounded-xl border border-orange-200/80 text-xs">
+                                <span class="font-bold text-[11px] uppercase tracking-wide text-orange-700 block mb-1">
+                                    📦 Equipment & Keys Returning Together:
+                                </span>
+                                <ul class="space-y-1">
+                                    @foreach ($primaryActiveTx->items as $item)
+                                        <li class="flex items-center justify-between text-gray-800">
+                                            <span class="flex items-center gap-1.5">
+                                                <span>{{ str_contains(strtolower($item->tool?->name ?? ''), 'key') ? '🔑' : '🔌' }}</span>
+                                                <span class="font-medium">{{ $item->tool?->name ?? 'Tool' }}</span>
+                                            </span>
+                                            <span class="font-bold text-orange-700">×{{ $item->remaining_quantity }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <form method="POST" action="{{ route('scan.room.return', $room->id) }}" class="mt-3"
+                              onsubmit="return confirm('Return {{ $room->name }} and all included keys/tools now?');">
+                            @csrf
+                            <button type="submit"
+                                    class="w-full bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold py-3 px-4 rounded-xl text-sm shadow-sm transition flex items-center justify-center gap-2">
+                                <span>✓ Vacate Room & Return All Keys / Tools</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         @else
             <div class="mb-5 bg-green-50 border border-green-300 rounded-xl p-3.5 flex items-center justify-between">
                 <div class="flex items-center gap-2">

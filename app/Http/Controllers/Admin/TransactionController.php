@@ -44,6 +44,24 @@ class TransactionController extends Controller
             $query->where('status', $request->status);
         }
 
+        // ── Filter: Type ──────────────────────────────────────────────────
+        if ($request->filled('type')) {
+            match ($request->type) {
+                'room' => $query->whereNotNull('room_id')->whereDoesntHave('items'),
+                'tool' => $query->where(function ($q) {
+                    $q->whereNotNull('tool_id')
+                      ->orWhere(function ($sub) {
+                          $sub->whereNull('room_id')->whereHas('items');
+                      });
+                }),
+                'room_tools' => $query->whereNotNull('room_id')->whereHas('items'),
+                'all_tools' => $query->where(function ($q) {
+                    $q->whereNotNull('tool_id')->orWhereHas('items');
+                }),
+                default => null,
+            };
+        }
+
         // ── Filter: Room ──────────────────────────────────────────────────
         if ($request->filled('room_id')) {
             $query->where('room_id', $request->room_id);
@@ -442,17 +460,30 @@ class TransactionController extends Controller
             return back()->with('info', 'This transaction is already marked as fully returned.');
         }
 
-        // Room transaction: Instant 1-click return
-        if ($transaction->room_id && ! $transaction->items()->exists() && ! $transaction->tool_id) {
+        // Room transaction with 1-click return: return room + all attached tools/keys together
+        if ($transaction->room_id && ! $request->has('return_items')) {
             $transaction->update([
                 'status'      => 'returned',
                 'returned_at' => now(),
             ]);
 
-            $transaction->load(['room', 'tool']);
+            foreach ($transaction->items as $item) {
+                if ($item->status !== 'returned') {
+                    $item->update([
+                        'quantity_returned' => $item->quantity_borrowed,
+                        'status'            => 'returned',
+                        'returned_at'       => now(),
+                    ]);
+                }
+            }
+
+            $transaction->load(['room', 'tool', 'items.tool']);
             $this->telegram->sendReturnNotification($transaction);
 
-            $msg = "Room utilization #{$transaction->id} ({$transaction->room?->name}) has been marked as returned.";
+            $msg = $transaction->items->isNotEmpty()
+                ? "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Room {$transaction->room?->name} and all borrowed tools/keys have been fully returned."
+                : "Room utilization #{$transaction->id} ({$transaction->room?->name}) has been marked as returned.";
+
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success'        => true,

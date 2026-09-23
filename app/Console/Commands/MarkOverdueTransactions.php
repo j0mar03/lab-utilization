@@ -41,12 +41,12 @@ class MarkOverdueTransactions extends Command
             $this->info('DRY RUN — no changes will be made.');
         }
 
-        // Find open transactions that are past their expected return time
+        // Find open or partially returned transactions that are past their expected return time
         // and haven't been marked overdue yet
-        $overdueTransactions = Transaction::where('status', 'open')
+        $overdueTransactions = Transaction::whereIn('status', ['open', 'partially_returned'])
             ->whereNotNull('expected_return_at')
             ->where('expected_return_at', '<', now())
-            ->with(['room', 'tool'])
+            ->with(['room', 'tool', 'items.tool'])
             ->get();
 
         if ($overdueTransactions->isEmpty()) {

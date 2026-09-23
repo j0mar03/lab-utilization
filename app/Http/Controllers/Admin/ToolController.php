@@ -32,10 +32,13 @@ class ToolController extends Controller
     {
         $query = Tool::withTrashed(false) // exclude soft-deleted
             ->with('room')
-            ->withCount([
-                'transactions as borrowed_count' => function ($q) {
-                    $q->where('status', 'open');
-                },
+            ->with([
+                'transactionItems' => fn ($q) => $q->where('status', '!=', 'returned')
+                    ->whereHas('transaction', fn ($tq) => $tq->whereIn('status', ['open', 'partially_returned', 'overdue']))
+                    ->with('transaction.room'),
+                'transactions' => fn ($q) => $q->whereIn('status', ['open', 'partially_returned', 'overdue'])
+                    ->whereDoesntHave('items')
+                    ->with('room'),
             ]);
 
         // Filter by category
@@ -180,16 +183,49 @@ class ToolController extends Controller
     }
 
     /**
+     * Show detailed status, active checkouts, and transaction history for a tool.
+     * GET /admin/tools/{tool}
+     */
+    public function show(Tool $tool): View
+    {
+        $tool->load('room');
+
+        // All active checkouts (from room transactions and multi-item checkouts)
+        $activeCheckouts = \App\Models\TransactionItem::where('tool_id', $tool->id)
+            ->where('status', '!=', 'returned')
+            ->whereHas('transaction', fn($q) => $q->whereIn('status', ['open', 'partially_returned', 'overdue']))
+            ->with(['transaction.room', 'transaction.user'])
+            ->get();
+
+        // Also check legacy direct checkouts without items
+        $legacyActiveTransactions = $tool->transactions()
+            ->whereIn('status', ['open', 'partially_returned', 'overdue'])
+            ->whereDoesntHave('items')
+            ->with(['room', 'user'])
+            ->get();
+
+        // Recent transaction history for this tool
+        $recentTransactions = \App\Models\Transaction::where(function ($q) use ($tool) {
+                $q->where('tool_id', $tool->id)
+                  ->orWhereHas('items', fn ($iq) => $iq->where('tool_id', $tool->id));
+            })
+            ->with(['room', 'items' => fn($q) => $q->where('tool_id', $tool->id)])
+            ->latest('checked_out_at')
+            ->paginate(15);
+
+        return view('admin.tools.show', compact('tool', 'activeCheckouts', 'legacyActiveTransactions', 'recentTransactions'));
+    }
+
+    /**
      * Soft-delete a tool.
      * Keeps all historical transaction records intact.
      */
     public function destroy(Tool $tool): RedirectResponse
     {
-        // Prevent deleting if there are open transactions
-        $openCount = $tool->transactions()->where('status', 'open')->count();
-        if ($openCount > 0) {
+        // Prevent deleting if currently borrowed
+        if ($tool->borrowed_quantity > 0) {
             return back()->withErrors([
-                'delete' => "Cannot delete \"{$tool->name}\" — it has {$openCount} open transaction(s). Mark it inactive instead.",
+                'delete' => "Cannot delete \"{$tool->name}\" — {$tool->borrowed_quantity} unit(s) are currently borrowed or in use. Mark it inactive instead.",
             ]);
         }
 

@@ -36,8 +36,9 @@ Route::get('/', function () {
 Route::middleware(['throttle:30,1'])->prefix('scan')->name('scan.')->group(function () {
 
     // Room checkout flow
-    Route::get('/room/{room}',  [ScanController::class, 'room'])->name('room');
-    Route::post('/room/{room}', [ScanController::class, 'checkoutRoom'])->name('room.checkout');
+    Route::get('/room/{room}',         [ScanController::class, 'room'])->name('room');
+    Route::post('/room/{room}',        [ScanController::class, 'checkoutRoom'])->name('room.checkout');
+    Route::post('/room/{room}/return', [ScanController::class, 'returnRoom'])->name('room.return');
 
     // Tool checkout flow
     Route::get('/tool/{tool}',  [ScanController::class, 'tool'])->name('tool');

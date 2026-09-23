@@ -99,12 +99,22 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($tools as $tool)
                             @php
-                                $borrowed  = $tool->borrowed_count ?? 0;
-                                $available = max(0, $tool->total_quantity - $borrowed);
+                                $borrowed  = $tool->borrowed_quantity;
+                                $available = $tool->available_quantity;
+                                $overdue   = $tool->overdue_quantity;
                             @endphp
-                            <tr class="hover:bg-gray-50 {{ !$tool->is_active ? 'opacity-60' : '' }}">
+                            <tr class="hover:bg-gray-50 {{ !$tool->is_active ? 'opacity-60' : '' }} {{ $overdue > 0 ? 'bg-red-50/50' : '' }}">
                                 <td class="px-4 py-3">
-                                    <div class="text-sm font-medium text-gray-900">{{ $tool->name }}</div>
+                                    <div class="flex items-center gap-2">
+                                        <a href="{{ route('admin.tools.show', $tool) }}" class="text-sm font-bold text-gray-900 hover:text-blue-600 transition">
+                                            {{ $tool->name }}
+                                        </a>
+                                        @if ($overdue > 0)
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 animate-pulse">
+                                                🚨 {{ $overdue }} Overdue
+                                            </span>
+                                        @endif
+                                    </div>
                                     @if ($tool->description)
                                         <div class="text-xs text-gray-400 mt-0.5">{{ Str::limit($tool->description, 60) }}</div>
                                     @endif
@@ -138,8 +148,15 @@
                                 <td class="px-4 py-3 text-center text-sm font-semibold text-gray-700">
                                     {{ $tool->total_quantity }}
                                 </td>
-                                <td class="px-4 py-3 text-center text-sm {{ $borrowed > 0 ? 'text-orange-600 font-semibold' : 'text-gray-400' }}">
-                                    {{ $borrowed }}
+                                <td class="px-4 py-3 text-center">
+                                    @if ($borrowed > 0)
+                                        <a href="{{ route('admin.tools.show', $tool) }}" class="inline-flex items-center gap-1 font-bold text-amber-700 hover:underline text-sm" title="View active borrowers and checkouts">
+                                            <span>{{ $borrowed }}</span>
+                                            <span class="text-[11px] font-normal text-amber-600">({{ (int) round(($borrowed / $tool->total_quantity) * 100) }}%)</span>
+                                        </a>
+                                    @else
+                                        <span class="text-sm text-gray-400">0</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <span class="text-sm font-bold {{ $available > 0 ? 'text-green-600' : 'text-red-600' }}">
@@ -153,15 +170,19 @@
                                         <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Inactive</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-right">
+                                <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
+                                    <a href="{{ route('admin.tools.show', $tool) }}"
+                                       class="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded transition">
+                                        🔍 Checkouts ({{ $borrowed }})
+                                    </a>
                                     <a href="{{ route('admin.tools.edit', $tool) }}"
-                                       class="text-blue-600 hover:text-blue-800 text-sm mr-3">Edit</a>
+                                       class="text-amber-600 hover:text-amber-800 text-xs font-medium">Edit</a>
                                     <form method="POST" action="{{ route('admin.tools.destroy', $tool) }}"
                                           class="inline"
                                           onsubmit="return confirm('Delete {{ addslashes($tool->name) }}? This cannot be undone (transaction history is preserved).')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-500 hover:text-red-700 text-sm">
+                                        <button type="submit" class="text-red-500 hover:text-red-700 text-xs font-medium">
                                             Delete
                                         </button>
                                     </form>

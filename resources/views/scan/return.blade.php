@@ -35,11 +35,29 @@
                 @endif
                 @if ($transaction->tool)
                     <div class="flex justify-between">
-                        <span class="text-sm text-gray-600">Tool</span>
+                        <span class="text-sm text-gray-600">Equipment / Tool</span>
                         <span class="text-sm font-semibold text-gray-900">
                             {{ $transaction->tool->name }}
                             @if ($transaction->quantity > 1) (×{{ $transaction->quantity }}) @endif
                         </span>
+                    </div>
+                @endif
+                @if ($transaction->items->isNotEmpty())
+                    <div class="pt-2 border-t border-gray-100">
+                        <span class="text-xs font-bold text-orange-700 uppercase tracking-wide block mb-1.5">
+                            📦 Tools, Keys & Accessories Returning Together:
+                        </span>
+                        <ul class="space-y-1 pl-1">
+                            @foreach ($transaction->items as $item)
+                                <li class="text-sm text-gray-800 flex items-center justify-between">
+                                    <span class="flex items-center gap-1.5">
+                                        <span>{{ str_contains(strtolower($item->tool?->name ?? ''), 'key') ? '🔑' : '🔌' }}</span>
+                                        <span>{{ $item->tool?->name ?? 'Tool' }}</span>
+                                    </span>
+                                    <span class="font-bold text-orange-600">×{{ $item->remaining_quantity > 0 ? $item->remaining_quantity : $item->quantity_borrowed }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
                     </div>
                 @endif
                 @if ($transaction->subject)

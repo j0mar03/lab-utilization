@@ -55,6 +55,12 @@
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm py-1 border-b border-red-100 dark:border-red-900/40 last:border-0">
                                         <span class="text-red-800 dark:text-red-300">
                                             <span class="font-semibold">{{ $tx->isRoom() ? '🏫 ' . ($tx->room?->name ?? 'Room') : '🔧 ' . ($tx->tool?->name ?? 'Tool') }}</span>
+                                            @if ($tx->items->isNotEmpty())
+                                                <span class="text-xs font-semibold text-red-700 dark:text-red-400 ml-1">
+                                                    (+ {{ $tx->items->count() }} tool{{ $tx->items->count() > 1 ? 's' : '' }}:
+                                                    {{ $tx->items->map(fn($i) => ($i->tool?->name ?? 'Tool') . ' ×' . ($i->remaining_quantity > 0 ? $i->remaining_quantity : $i->quantity_borrowed))->join(', ') }})
+                                                </span>
+                                            @endif
                                             — <span class="font-medium">{{ $tx->borrower_name }}</span>
                                             <span class="text-[11px] px-1.5 py-0.2 rounded bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 ml-1 font-semibold">
                                                 {{ $tx->departmentShort() }}
@@ -650,10 +656,16 @@
                                             <div>
                                                 👤 <span class="font-bold">{{ $tx->borrower_name }}</span>
                                                 <span class="text-gray-400 text-[11px]">({{ $tx->departmentShort() }})</span>
+                                                @if ($tx->room)
+                                                    <span class="text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold">in 🏫 {{ $tx->room->name }}</span>
+                                                @endif
                                                 @if ($tx->subject)
                                                     <span class="text-gray-500 dark:text-gray-400 text-[11px]">— {{ $tx->subject }}</span>
                                                 @endif
                                                 @if ($tx->quantity > 1)<span class="font-bold text-blue-600 ml-1">×{{ $tx->quantity }}</span>@endif
+                                                @if ($tx->isOverdue())
+                                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 animate-pulse ml-1">🚨 OVERDUE</span>
+                                                @endif
                                             </div>
                                             <div class="flex items-center gap-2 shrink-0">
                                                 <span class="text-gray-400 text-[11px]">{{ $tx->checked_out_at->format('g:i A') }}</span>
@@ -677,9 +689,12 @@
                                                     👤 <span class="font-bold">{{ $item->transaction->borrower_name }}</span>
                                                     <span class="text-gray-400 text-[11px]">({{ $item->transaction->departmentShort() }})</span>
                                                     @if ($item->transaction->room)
-                                                        <span class="text-indigo-600 dark:text-indigo-400 text-[11px] font-medium">in {{ $item->transaction->room->name }}</span>
+                                                        <span class="text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold">in 🏫 {{ $item->transaction->room->name }}</span>
                                                     @endif
                                                     <span class="font-bold text-blue-600 ml-1">×{{ $item->remaining_quantity }}</span>
+                                                    @if ($item->transaction->isOverdue())
+                                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 animate-pulse ml-1">🚨 OVERDUE</span>
+                                                    @endif
                                                 </div>
                                                 <div class="flex items-center gap-2 shrink-0">
                                                     <span class="text-gray-400 text-[11px]">{{ $item->transaction->checked_out_at->format('g:i A') }}</span>
@@ -775,7 +790,18 @@
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
                                             <td class="px-5 py-3 text-xs text-gray-400">#{{ $tx->id }}</td>
                                             <td class="px-5 py-3 text-sm font-bold text-gray-900 dark:text-gray-100">
-                                                {{ $tx->room?->name ?? 'Room' }}
+                                                <div>{{ $tx->room?->name ?? 'Room' }}</div>
+                                                @if ($tx->items->isNotEmpty())
+                                                    <div class="flex flex-wrap gap-1 mt-1">
+                                                        @foreach ($tx->items as $item)
+                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                                                <span>{{ str_contains(strtolower($item->tool?->name ?? ''), 'key') ? '🔑' : '🔌' }}</span>
+                                                                <span>{{ $item->tool?->name ?? 'Tool' }}</span>
+                                                                <span class="font-bold">×{{ $item->quantity_borrowed }}</span>
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td class="px-5 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">
                                                 {{ $tx->borrower_name }}
@@ -848,6 +874,13 @@
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
                                             <td class="px-5 py-3 text-xs text-gray-400">#{{ $tx->id }}</td>
                                             <td class="px-5 py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                                                @if ($tx->room)
+                                                    <div class="mb-1">
+                                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                                            🏫 in {{ $tx->room->name }}
+                                                        </span>
+                                                    </div>
+                                                @endif
                                                 @if ($tx->items->isNotEmpty())
                                                     <div class="space-y-0.5">
                                                         @foreach ($tx->items as $item)

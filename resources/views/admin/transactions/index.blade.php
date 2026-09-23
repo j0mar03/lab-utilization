@@ -58,6 +58,18 @@
                     </div>
 
                     <div>
+                        <label class="block text-xs text-gray-500 mb-1">Type</label>
+                        <select name="type"
+                                class="border-gray-300 rounded-lg text-sm px-3 py-2">
+                            <option value="">All Types</option>
+                            <option value="room"       {{ request('type') === 'room'       ? 'selected' : '' }}>🏫 Room Only</option>
+                            <option value="room_tools" {{ request('type') === 'room_tools' ? 'selected' : '' }}>🏫+🔧 Room with Tools/Keys</option>
+                            <option value="all_tools"  {{ request('type') === 'all_tools'  ? 'selected' : '' }}>🔧 All Equipment Borrows</option>
+                            <option value="tool"       {{ request('type') === 'tool'       ? 'selected' : '' }}>🛠️ Standalone Tools</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="block text-xs text-gray-500 mb-1">Room</label>
                         <select name="room_id"
                                 class="border-gray-300 rounded-lg text-sm px-3 py-2 w-36">
@@ -155,7 +167,34 @@
                                         {{ $tx->borrower_name }}
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-700">
-                                        {{ $tx->subjectDescription() }}
+                                        @if ($tx->room)
+                                            <div class="font-bold text-gray-900 flex items-center gap-1.5">
+                                                <span>🏫 {{ $tx->room->name }}</span>
+                                            </div>
+                                        @endif
+                                        @if ($tx->items->isNotEmpty())
+                                            <div class="flex flex-wrap gap-1 {{ $tx->room ? 'mt-1' : '' }}">
+                                                @foreach ($tx->items as $item)
+                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium {{ $item->status === 'returned' ? 'bg-gray-100 text-gray-500 line-through' : ($tx->isOverdue() ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-amber-50 text-amber-800 border border-amber-200') }}">
+                                                        <span>{{ str_contains(strtolower($item->tool?->name ?? ''), 'key') ? '🔑' : '🔌' }}</span>
+                                                        <span>{{ $item->tool?->name ?? 'Tool' }}</span>
+                                                        <span class="font-bold">×{{ $item->quantity_borrowed }}</span>
+                                                        @if ($item->status === 'returned')
+                                                            <span class="text-green-600 font-bold">✓</span>
+                                                        @endif
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @elseif ($tx->tool)
+                                            <div class="font-medium text-gray-900 flex items-center gap-1">
+                                                <span>🔧 {{ $tx->tool->name }}</span>
+                                                @if ($tx->quantity > 1)
+                                                    <span class="text-xs font-bold text-blue-600">(×{{ $tx->quantity }})</span>
+                                                @endif
+                                            </div>
+                                        @elseif (!$tx->room)
+                                            <span class="text-gray-400">—</span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-500 max-w-[200px]">
                                         <div class="truncate">{{ $tx->subject ?? '—' }}</div>
@@ -179,7 +218,7 @@
                                         @if ($tx->returned_at)
                                             {{ $tx->checked_out_at->diff($tx->returned_at)->format('%hh %im') }}
                                         @elseif ($tx->isOverdue())
-                                            <span class="text-red-500">{{ $tx->checked_out_at->diffForHumans(null, true) }}</span>
+                                            <span class="text-red-500 font-semibold">{{ $tx->checked_out_at->diffForHumans(null, true) }}</span>
                                         @else
                                             {{ $tx->checked_out_at->diffForHumans(null, true) }}
                                         @endif
@@ -187,7 +226,7 @@
                                     <td class="px-4 py-3">
                                         <span class="text-xs text-gray-400">
                                             @if ($tx->source === 'google_form') 📝
-                                            @elseif ($tx->source === 'qr_scan') 📷
+                                             @elseif ($tx->source === 'qr_scan') 📷
                                             @else 💻
                                             @endif
                                             {{ $tx->source === 'google_form' ? 'Form' : ($tx->source === 'qr_scan' ? 'QR' : 'Manual') }}
@@ -212,22 +251,16 @@
                                         <a href="{{ route('admin.transactions.edit', $tx) }}"
                                            class="text-xs font-medium text-amber-600 hover:text-amber-800 dark:text-amber-400">Edit</a>
                                         @if ($tx->status !== 'returned')
-                                            @if ($tx->items->isNotEmpty())
-                                                <a href="{{ route('admin.transactions.show', $tx->id) }}#return-section"
-                                                   class="text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-1 rounded transition">
-                                                    📦 Return Tools
-                                                </a>
-                                            @else
-                                                <form method="POST" action="{{ route('admin.transactions.return', $tx) }}"
-                                                      class="inline"
-                                                      onsubmit="return confirm('Mark transaction #{{ $tx->id }} ({{ $tx->borrower_name }}) as returned?');">
-                                                    @csrf
-                                                    <button type="submit"
-                                                            class="text-xs font-medium bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-1 rounded transition">
-                                                        ✓ Return
-                                                    </button>
-                                                </form>
-                                            @endif
+                                            <form method="POST" action="{{ route('admin.transactions.return', $tx) }}"
+                                                  class="inline"
+                                                  onsubmit="return confirm('Return {{ $tx->isRoom() && $tx->items->isNotEmpty() ? 'Room ' . ($tx->room?->name ?? '') . ' and all attached tools/keys' : ($tx->isRoom() ? 'Room ' . ($tx->room?->name ?? '') : 'all tools') }} for transaction #{{ $tx->id }}?');">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="text-xs font-semibold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 px-2.5 py-1 rounded transition"
+                                                        title="Return room and all tools together">
+                                                    ✓ Return
+                                                </button>
+                                            </form>
                                         @endif
                                     </td>
                                 </tr>
