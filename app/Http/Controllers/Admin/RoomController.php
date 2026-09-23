@@ -103,8 +103,9 @@ class RoomController extends Controller
     {
         $departments = Room::DEPARTMENTS;
         $locations   = self::LOCATIONS;
+        $roomTypes   = Room::ROOM_TYPES;
 
-        return view('admin.rooms.create', compact('departments', 'locations'));
+        return view('admin.rooms.create', compact('departments', 'locations', 'roomTypes'));
     }
 
     /**
@@ -114,6 +115,7 @@ class RoomController extends Controller
     {
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255', Rule::unique('rooms', 'name')->whereNull('deleted_at')],
+            'room_type'   => ['nullable', 'string', 'in:computer_lab,engineering_lab,lecture,office,general'],
             'department'  => ['nullable', 'string', 'max:255'],
             'location'    => ['nullable', 'string', 'max:255'],
             'capacity'    => ['nullable', 'integer', 'min:1', 'max:500'],
@@ -157,8 +159,9 @@ class RoomController extends Controller
     {
         $departments = Room::DEPARTMENTS;
         $locations   = self::LOCATIONS;
+        $roomTypes   = Room::ROOM_TYPES;
 
-        return view('admin.rooms.edit', compact('room', 'departments', 'locations'));
+        return view('admin.rooms.edit', compact('room', 'departments', 'locations', 'roomTypes'));
     }
 
     /**
@@ -173,6 +176,7 @@ class RoomController extends Controller
                 'max:255',
                 Rule::unique('rooms', 'name')->ignore($room->id)->whereNull('deleted_at')
             ],
+            'room_type'   => ['nullable', 'string', 'in:computer_lab,engineering_lab,lecture,office,general'],
             'department'  => ['nullable', 'string', 'max:255'],
             'location'    => ['nullable', 'string', 'max:255'],
             'capacity'    => ['nullable', 'integer', 'min:1', 'max:500'],

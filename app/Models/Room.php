@@ -15,12 +15,21 @@ class Room extends Model
 
     protected $fillable = [
         'name',
+        'room_type',
         'department',
         'location',
         'capacity',
         'has_wifi',
         'wifi_notes',
         'manual_url',
+    ];
+
+    public const ROOM_TYPES = [
+        'computer_lab'    => '💻 Computer Laboratory (Software Tracking)',
+        'engineering_lab' => '⚙️ Engineering / Mechanical Lab (Apparatus / Tools)',
+        'lecture'         => '📖 Lecture Room / Classroom',
+        'office'          => '🏢 Laboratory Office / Administrative',
+        'general'         => '🏫 General / Shared Room',
     ];
 
     protected function casts(): array
@@ -61,29 +70,45 @@ class Room extends Model
 
     public function isComputerLab(): bool
     {
+        if (!empty($this->room_type) && $this->room_type !== 'general') {
+            return $this->room_type === 'computer_lab';
+        }
+
         $normalized = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $this->name)));
         return in_array($normalized, self::COMPUTER_LABS);
     }
 
     public function isEngineeringLab(): bool
     {
+        if (!empty($this->room_type) && $this->room_type !== 'general') {
+            return $this->room_type === 'engineering_lab';
+        }
+
         $normalized = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $this->name)));
         return in_array($normalized, self::ENGINEERING_LABS);
     }
 
     public function isOffice(): bool
     {
-        return str_contains(strtoupper($this->name), 'OFFICE');
-    }
+        if (!empty($this->room_type) && $this->room_type !== 'general') {
+            return $this->room_type === 'office';
+        }
 
-    public function isLab(): bool
-    {
-        return str_starts_with(strtoupper($this->name), 'LAB') && !$this->isOffice();
+        return str_contains(strtoupper($this->name), 'OFFICE');
     }
 
     public function isLecture(): bool
     {
+        if (!empty($this->room_type) && $this->room_type !== 'general') {
+            return $this->room_type === 'lecture';
+        }
+
         return str_starts_with(strtoupper($this->name), 'LEC');
+    }
+
+    public function isLab(): bool
+    {
+        return $this->isComputerLab() || $this->isEngineeringLab() || (str_starts_with(strtoupper($this->name), 'LAB') && !$this->isOffice());
     }
 
     public function roomType(): string
@@ -191,26 +216,51 @@ class Room extends Model
 
     public function scopeOffices($query)
     {
-        return $query->where('name', 'LIKE', '%Office%');
+        return $query->where(function ($q) {
+            $q->where('room_type', 'office')
+              ->orWhere(function ($sub) {
+                  $sub->whereNull('room_type')->where('name', 'LIKE', '%Office%');
+              });
+        });
     }
 
     public function scopeLaboratories($query)
     {
-        return $query->where('name', 'LIKE', 'LAB%')->where('name', 'NOT LIKE', '%Office%');
+        return $query->where(function ($q) {
+            $q->whereIn('room_type', ['computer_lab', 'engineering_lab'])
+              ->orWhere(function ($sub) {
+                  $sub->whereNull('room_type')->where('name', 'LIKE', 'LAB%')->where('name', 'NOT LIKE', '%Office%');
+              });
+        });
     }
 
     public function scopeComputerLabs($query)
     {
-        return $query->whereIn('name', self::COMPUTER_LABS);
+        return $query->where(function ($q) {
+            $q->where('room_type', 'computer_lab')
+              ->orWhere(function ($sub) {
+                  $sub->whereNull('room_type')->whereIn('name', self::COMPUTER_LABS);
+              });
+        });
     }
 
     public function scopeEngineeringLabs($query)
     {
-        return $query->whereIn('name', self::ENGINEERING_LABS);
+        return $query->where(function ($q) {
+            $q->where('room_type', 'engineering_lab')
+              ->orWhere(function ($sub) {
+                  $sub->whereNull('room_type')->whereIn('name', self::ENGINEERING_LABS);
+              });
+        });
     }
 
     public function scopeLectures($query)
     {
-        return $query->where('name', 'LIKE', 'LEC%');
+        return $query->where(function ($q) {
+            $q->where('room_type', 'lecture')
+              ->orWhere(function ($sub) {
+                  $sub->whereNull('room_type')->where('name', 'LIKE', 'LEC%');
+              });
+        });
     }
 }
