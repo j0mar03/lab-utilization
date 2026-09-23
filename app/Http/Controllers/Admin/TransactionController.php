@@ -495,10 +495,11 @@ class TransactionController extends Controller
             return back()->with('success', $msg);
         }
 
-        // Tool transaction: multi-tool and partial return support
+        // Tool transaction or Room transaction with specific tool returns (return_items)
         $transaction->load(['items.tool', 'tool']);
         $returnItemsInput = $request->input('return_items'); // [ item_id => quantity_returning_now ]
         $returnNotes = $request->input('return_notes');
+        $vacateRoom = $request->boolean('vacate_room');
 
         if ($transaction->items->isNotEmpty()) {
             $totalNewlyReturned = 0;
@@ -536,26 +537,52 @@ class TransactionController extends Controller
             $allReturned = $transaction->items->every(fn($i) => $i->status === 'returned');
             $anyReturned = $transaction->items->some(fn($i) => $i->quantity_returned > 0);
 
-            if ($allReturned) {
-                $transaction->update([
-                    'status'      => 'returned',
-                    'returned_at' => now(),
-                ]);
-                if ($transaction->room_id) {
-                    $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Room {$transaction->room?->name} and all borrowed tools/accessories have been fully returned.";
+            if ($transaction->room_id) {
+                // ── ROOM TRANSACTION WITH ATTACHED ACCESSORIES ──────────────
+                if ($vacateRoom) {
+                    $transaction->update([
+                        'status'      => 'returned',
+                        'returned_at' => now(),
+                    ]);
+                    $transaction->load(['room', 'tool', 'items.tool']);
+                    $this->telegram->sendReturnNotification($transaction);
+                    $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Room {$transaction->room?->name} vacated and tool(s) returned.";
                 } else {
-                    $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — All tools have been fully returned.";
+                    // TOOL RETURN ONLY:
+                    // The room remains occupied! Do NOT mark transaction as returned or set returned_at.
+                    $returnedToolsList = $transaction->items
+                        ->filter(fn($i) => is_array($returnItemsInput) && isset($returnItemsInput[$i->id]) && (int)$returnItemsInput[$i->id] > 0)
+                        ->map(fn($i) => ($i->tool?->name ?? 'Tool') . " (×" . $returnItemsInput[$i->id] . ")")
+                        ->join(', ');
+
+                    $transaction->load(['room', 'tool', 'items.tool']);
+                    $this->telegram->sendReturnNotification($transaction);
+
+                    $msg = $returnedToolsList
+                        ? "Tool(s) [{$returnedToolsList}] checked in successfully. Room {$transaction->room?->name} remains in use by {$transaction->borrower_name}."
+                        : "Tool items updated for Room {$transaction->room?->name}. The room remains in use.";
                 }
-            } elseif ($anyReturned) {
-                $transaction->update([
-                    'status' => 'partially_returned',
-                ]);
-                $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Partial return recorded ({$totalNewlyReturned} unit(s) returned). Remaining tools remain borrowed.";
             } else {
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json(['success' => false, 'message' => 'No tool quantities were specified to return.'], 422);
+                // ── STANDALONE TOOL TRANSACTION (NO ROOM) ───────────────────
+                if ($allReturned) {
+                    $transaction->update([
+                        'status'      => 'returned',
+                        'returned_at' => now(),
+                    ]);
+                    $this->telegram->sendReturnNotification($transaction);
+                    $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — All tools have been fully returned.";
+                } elseif ($anyReturned) {
+                    $transaction->update([
+                        'status' => 'partially_returned',
+                    ]);
+                    $this->telegram->sendReturnNotification($transaction);
+                    $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) — Partial return recorded ({$totalNewlyReturned} unit(s) returned). Remaining tools remain borrowed.";
+                } else {
+                    if ($request->wantsJson() || $request->ajax()) {
+                        return response()->json(['success' => false, 'message' => 'No tool quantities were specified to return.'], 422);
+                    }
+                    return back()->with('warning', 'No tool quantities were specified to return.');
                 }
-                return back()->with('warning', 'No tool quantities were specified to return.');
             }
         } else {
             // Legacy single-tool transaction without items table
@@ -563,11 +590,9 @@ class TransactionController extends Controller
                 'status'      => 'returned',
                 'returned_at' => now(),
             ]);
+            $this->telegram->sendReturnNotification($transaction);
             $msg = "Transaction #{$transaction->id} ({$transaction->borrower_name}) has been marked as returned.";
         }
-
-        $transaction->load(['room', 'tool', 'items.tool']);
-        $this->telegram->sendReturnNotification($transaction);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([

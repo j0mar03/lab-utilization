@@ -192,11 +192,13 @@
                                             <td class="px-5 py-3 text-right space-x-2">
                                                 <form method="POST" action="{{ route('admin.transactions.return', $tx->id) }}"
                                                       class="inline"
-                                                      onsubmit="return confirm('Return this tool (and room if applicable) for transaction #{{ $tx->id }}?');">
+                                                      onsubmit="return confirm('Check in {{ $item->remaining_quantity }} unit(s) of {{ $tool->name }} for transaction #{{ $tx->id }}?{{ $tx->room ? ' (Room ' . $tx->room->name . ' will remain in use)' : '' }}');">
                                                     @csrf
+                                                    <input type="hidden" name="return_items[{{ $item->id }}]" value="{{ $item->remaining_quantity }}">
                                                     <button type="submit"
-                                                            class="text-xs font-semibold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 px-2.5 py-1 rounded transition">
-                                                        ✓ Return
+                                                            class="text-xs font-semibold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 px-2.5 py-1 rounded transition"
+                                                            title="Check in this tool">
+                                                        ✓ Return Tool
                                                     </button>
                                                 </form>
                                                 <a href="{{ route('admin.transactions.show', $tx->id) }}"

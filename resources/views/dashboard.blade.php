@@ -699,9 +699,12 @@
                                                 <div class="flex items-center gap-2 shrink-0">
                                                     <span class="text-gray-400 text-[11px]">{{ $item->transaction->checked_out_at->format('g:i A') }}</span>
                                                     @if (auth()->user()->isLabHead() || auth()->user()->isStudentAssistant())
-                                                        <form method="POST" action="{{ route('admin.transactions.return', $item->transaction->id) }}" class="inline" onsubmit="return confirm('Mark transaction #{{ $item->transaction->id }} as returned?');">
+                                                        <form method="POST" action="{{ route('admin.transactions.return', $item->transaction->id) }}" class="inline"
+                                                              onsubmit="return confirm('Check in {{ $item->remaining_quantity }} unit(s) of {{ $tool->name }}?{{ $item->transaction->room ? ' (Room ' . $item->transaction->room->name . ' will remain in use)' : '' }}');">
                                                             @csrf
-                                                            <button type="submit" class="text-[11px] font-semibold text-orange-600 hover:underline bg-transparent border-0 p-0 cursor-pointer">
+                                                            <input type="hidden" name="return_items[{{ $item->id }}]" value="{{ $item->remaining_quantity }}">
+                                                            <button type="submit" class="text-[11px] font-semibold text-orange-600 hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                                                                    title="Return this tool">
                                                                 ↩ Return
                                                             </button>
                                                         </form>

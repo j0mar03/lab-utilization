@@ -106,8 +106,18 @@ class TelegramService
         $transaction->loadMissing(['room', 'tool', 'items.tool']);
 
         $isRoom     = $transaction->isRoom();
-        $icon       = $isRoom ? '🏫' : '✅';
-        $title      = $isRoom ? 'ROOM VACATED' : ($transaction->status === 'partially_returned' ? 'PARTIAL RETURN' : 'ITEM RETURNED');
+        $isVacated  = ($transaction->status === 'returned');
+
+        if ($isRoom && ! $isVacated) {
+            $icon  = '🔧';
+            $title = 'ACCESSORIES RETURNED (ROOM IN USE)';
+        } elseif ($isRoom) {
+            $icon  = '🏫';
+            $title = 'ROOM VACATED';
+        } else {
+            $icon  = ($transaction->status === 'partially_returned') ? '⚡' : '✅';
+            $title = ($transaction->status === 'partially_returned') ? 'PARTIAL RETURN' : 'ITEM RETURNED';
+        }
         $dept       = $transaction->departmentShort() ?: 'General / Shared';
         $returnTime = $transaction->returned_at ? $transaction->returned_at->format('M d, Y g:i A') : now()->format('M d, Y g:i A');
 
@@ -117,7 +127,8 @@ class TelegramService
         $message .= "🏢 *Department:* {$dept}\n";
 
         if ($isRoom) {
-            $message .= "🚪 *Room:* " . ($transaction->room?->name ?? 'Room') . "\n";
+            $roomStatus = $isVacated ? 'Vacated' : 'Still actively in use';
+            $message .= "🚪 *Room:* " . ($transaction->room?->name ?? 'Room') . " ({$roomStatus})\n";
             if ($transaction->hasSoftwareUtilized()) {
                 $message .= "💻 *Software:* " . $transaction->softwareSummary() . "\n";
             }
@@ -139,6 +150,8 @@ class TelegramService
 
         if ($transaction->status === 'partially_returned') {
             $message .= "⚠️ *Status:* Partially Returned (some items still checked out)\n";
+        } elseif ($isRoom && ! $isVacated) {
+            $message .= "ℹ️ *Status:* Room is still actively occupied\n";
         }
 
         // Flag if it was overdue before return

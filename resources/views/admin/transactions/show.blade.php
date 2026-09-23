@@ -46,11 +46,11 @@
                     </div>
                     <div class="ml-auto flex items-center gap-2">
                         <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}"
-                              onsubmit="return confirm('Mark transaction #{{ $transaction->id }} ({{ $transaction->isRoom() ? 'Room and all tools' : 'all tools' }}) as fully returned?');">
+                              onsubmit="return confirm('{{ $transaction->isRoom() ? 'Vacate Room ' . ($transaction->room?->name ?? '') . ($transaction->items->some(fn($i) => $i->remaining_quantity > 0) ? ' and return all attached tools/keys' : '') : 'Mark all tools as returned' }} for transaction #{{ $transaction->id }}?');">
                             @csrf
                             <button type="submit"
                                     class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                                ✓ Return All
+                                {{ $transaction->isRoom() ? '✓ Vacate Room' . ($transaction->items->some(fn($i) => $i->remaining_quantity > 0) ? ' & Return All Tools' : '') : '✓ Return All' }}
                             </button>
                         </form>
                         @if ($transaction->items->isNotEmpty())
@@ -70,11 +70,11 @@
                     </div>
                     <div class="ml-auto flex items-center gap-2">
                         <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}"
-                              onsubmit="return confirm('Return all remaining items for transaction #{{ $transaction->id }}?');">
+                              onsubmit="return confirm('{{ $transaction->isRoom() ? 'Vacate Room ' . ($transaction->room?->name ?? '') . ' and return all remaining tools/keys' : 'Return all remaining items' }} for transaction #{{ $transaction->id }}?');">
                             @csrf
                             <button type="submit"
                                     class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition">
-                                ✓ Return All Remaining
+                                {{ $transaction->isRoom() ? '✓ Vacate Room & Return All' : '✓ Return All Remaining' }}
                             </button>
                         </form>
                         <a href="#return-section"
@@ -94,11 +94,11 @@
                     </div>
                     <div class="ml-auto flex items-center gap-2">
                         <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}"
-                              onsubmit="return confirm('Mark transaction #{{ $transaction->id }} ({{ $transaction->isRoom() && $transaction->items->isNotEmpty() ? 'Room and all attached tools/keys' : 'all items' }}) as returned?');">
+                              onsubmit="return confirm('{{ $transaction->isRoom() ? 'Vacate Room ' . ($transaction->room?->name ?? '') . ($transaction->items->some(fn($i) => $i->remaining_quantity > 0) ? ' and return all attached tools/keys' : '') : 'Mark transaction #' . $transaction->id . ' as returned' }}?');">
                             @csrf
                             <button type="submit"
                                     class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                                ✓ Mark Returned
+                                {{ $transaction->isRoom() ? '✓ Vacate Room' . ($transaction->items->some(fn($i) => $i->remaining_quantity > 0) ? ' & Return All Tools' : '') : '✓ Mark Returned' }}
                             </button>
                         </form>
                         @if ($transaction->items->isNotEmpty())
@@ -235,12 +235,42 @@
                                            class="w-full border-gray-300 rounded-lg text-sm px-3 py-2">
                                 </div>
 
+                                @if ($transaction->room)
+                                    <div class="p-3 bg-blue-50/70 border border-blue-200 rounded-lg flex items-start gap-2.5">
+                                        <input type="checkbox" name="vacate_room" id="vacate_room_checkbox" value="1"
+                                               class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <label for="vacate_room_checkbox" class="text-xs text-blue-900 cursor-pointer select-none">
+                                            <span class="font-semibold">Also mark Room {{ $transaction->room->name }} as vacated / returned</span>
+                                            <span class="block text-blue-700 text-[11px] mt-0.5">
+                                                Leave this unchecked (default) if the faculty is still actively inside Room {{ $transaction->room->name }} and only returning these accessories right now.
+                                            </span>
+                                        </label>
+                                    </div>
+                                @endif
+
                                 <div class="flex items-center justify-end gap-3 pt-2">
                                     <button type="submit"
                                             class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm transition">
                                         ✓ Confirm Tool Return
                                     </button>
                                 </div>
+                            </form>
+                        </div>
+                    @endif
+
+                    {{-- Notice when all tools are returned but room is still in use --}}
+                    @if ($transaction->status !== 'returned' && $transaction->room && $transaction->items->every(fn($i) => $i->status === 'returned'))
+                        <div class="p-4 bg-emerald-50 border-t border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-800">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">✅</span>
+                                <span>All borrowed accessories/tools have been returned. Room <strong>{{ $transaction->room->name }}</strong> remains in use by {{ $transaction->borrower_name }}.</span>
+                            </div>
+                            <form method="POST" action="{{ route('admin.transactions.return', $transaction) }}"
+                                  onsubmit="return confirm('Vacate Room {{ $transaction->room->name }} and conclude transaction #{{ $transaction->id }}?');">
+                                @csrf
+                                <button type="submit" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold shadow-xs transition shrink-0 cursor-pointer">
+                                    ✓ Vacate Room Now
+                                </button>
                             </form>
                         </div>
                     @endif
