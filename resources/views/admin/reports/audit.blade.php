@@ -311,7 +311,82 @@
             </div>
         </div>
 
-        {{-- ── SECTION 4: OFFICIAL SIGN-OFF BLOCK ─────────────────────────────── --}}
+        {{-- ── SECTION 4: EQUIPMENT & APPARATUS CIRCULATION AUDIT MATRIX ─────── --}}
+        <div class="space-y-3">
+            <div class="border-b border-gray-200 pb-1">
+                <h3 class="font-bold text-sm text-gray-900 uppercase tracking-wider">
+                    4. Equipment & Apparatus Circulation Audit Matrix
+                </h3>
+                <p class="text-xs text-gray-500">
+                    Circulation records of laboratory apparatus, teaching accessories, and tools (borrowed directly or checked out with rooms).
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 border border-gray-200 text-xs">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-bold text-gray-700">Apparatus / Tool</th>
+                            <th class="px-3 py-2 text-left font-bold text-gray-700">Category</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-700">Sessions</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-700">Units Out</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-700">Units Returned</th>
+                            <th class="px-3 py-2 text-left font-bold text-gray-700">Facility / Room Utilization</th>
+                            <th class="px-3 py-2 text-left font-bold text-gray-700">Primary Borrowers</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @forelse ($toolAuditMatrix as $row)
+                            @php
+                                $retPct = $row['total_borrowed'] > 0 ? round(($row['total_returned'] / $row['total_borrowed']) * 100) : 100;
+                            @endphp
+                            <tr class="{{ $loop->even ? 'bg-gray-50/50' : 'bg-white' }}">
+                                <td class="px-3 py-2 font-bold text-gray-900 whitespace-nowrap">
+                                    {{ $row['name'] }}
+                                </td>
+                                <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                    {{ $row['category'] }}
+                                </td>
+                                <td class="px-3 py-2 text-center font-semibold text-gray-800">
+                                    {{ $row['sessions'] }}
+                                </td>
+                                <td class="px-3 py-2 text-center font-black text-gray-900 whitespace-nowrap">
+                                    {{ $row['total_borrowed'] }}
+                                </td>
+                                <td class="px-3 py-2 text-center whitespace-nowrap">
+                                    <span class="font-bold text-emerald-700">{{ $row['total_returned'] }}</span>
+                                    <span class="text-gray-400 text-[10px]">({{ $retPct }}%)</span>
+                                </td>
+                                <td class="px-3 py-2 text-gray-700">
+                                    @php
+                                        $locStrings = [];
+                                        foreach ($row['rooms'] as $roomLabel => $count) {
+                                            $locStrings[] = "{$roomLabel} (×{$count})";
+                                        }
+                                    @endphp
+                                    {{ implode(', ', $locStrings) }}
+                                </td>
+                                <td class="px-3 py-2 text-gray-700 max-w-xs truncate">
+                                    @php
+                                        $borrowerNames = array_keys(array_slice($row['borrowers'], 0, 3, true));
+                                    @endphp
+                                    {{ implode(', ', $borrowerNames) }}
+                                    @if (count($row['borrowers']) > 3)
+                                        <span class="text-gray-400">+{{ count($row['borrowers']) - 3 }} more</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center py-6 text-gray-400">No equipment circulation recorded under current filter.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- ── SECTION 5: OFFICIAL SIGN-OFF BLOCK ─────────────────────────────── --}}
         <div class="pt-8 border-t-2 border-gray-300 mt-12">
             <p class="text-xs text-gray-500 mb-8 italic">
                 I hereby certify that the above laboratory and facilities utilization metrics are true, correct, and systematically recorded by the PUP-ITECH Lab Utilization Management System in adherence to university academic guidelines and Republic Act 10173 (Data Privacy Act of 2012).

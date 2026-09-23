@@ -92,7 +92,7 @@ class ReportController extends Controller
 
         // ── 2. Filtered Queries ──────────────────────────────────────────────
         $roomTxQuery = Transaction::rooms()->with(['room', 'user']);
-        $toolTxQuery = Transaction::tools()->with(['tool', 'items.tool', 'user']);
+        $toolTxQuery = Transaction::tools()->with(['tool', 'items.tool', 'room', 'user']);
 
         if ($departmentFilter) {
             $variants = $resolveDeptVariants($departmentFilter);
@@ -110,6 +110,7 @@ class ReportController extends Controller
 
         if ($roomIdFilter) {
             $roomTxQuery->where('room_id', $roomIdFilter);
+            $toolTxQuery->where('room_id', $roomIdFilter);
         }
 
         if ($borrowerFilter) {
@@ -156,13 +157,19 @@ class ReportController extends Controller
         $avgRoomDurationHours = $totalRoomTransactions > 0 ? round(($allRoomMinutes / $totalRoomTransactions) / 60, 1) : 0;
 
         // ── 4. Tool Utilization Specifics (Filtered) ─────────────────────────
-        $totalToolTransactions = $filteredToolTransactions->count();
-        $returnedToolCount     = $filteredToolTransactions->where('status', 'returned')->count();
-
+        $totalToolTransactions  = $filteredToolTransactions->count();
+        $returnedToolCount      = $filteredToolTransactions->where('status', 'returned')->count();
         $totalToolUnitsBorrowed = 0;
+        $totalToolUnitsReturned = 0;
+
         foreach ($filteredToolTransactions as $ttx) {
             $totalToolUnitsBorrowed += $ttx->total_quantity_borrowed;
+            $totalToolUnitsReturned += $ttx->total_quantity_returned;
         }
+
+        $toolReturnRate = $totalToolUnitsBorrowed > 0
+            ? round(($totalToolUnitsReturned / $totalToolUnitsBorrowed) * 100, 1)
+            : 100.0;
 
         // ── 5. Room × Student Department Audit Matrix ────────────────────────
         $roomTransactionsByRoom = $filteredRoomTransactions->groupBy('room_id');
@@ -534,12 +541,97 @@ class ReportController extends Controller
         // Equipment Categories
         $toolCategories = [];
         foreach ($filteredToolTransactions as $ttx) {
-            $cat = $ttx->tool?->category ?? 'General Equipment';
-            $toolCategories[$cat] = ($toolCategories[$cat] ?? 0) + 1;
+            if ($ttx->items->isNotEmpty()) {
+                foreach ($ttx->items as $item) {
+                    $cat = $item->tool?->category ?: 'General Equipment';
+                    $toolCategories[$cat] = ($toolCategories[$cat] ?? 0) + $item->quantity_borrowed;
+                }
+            } elseif ($ttx->tool) {
+                $cat = $ttx->tool->category ?: 'General Equipment';
+                $toolCategories[$cat] = ($toolCategories[$cat] ?? 0) + $ttx->quantity;
+            }
         }
         arsort($toolCategories);
         $toolCatLabels = array_keys($toolCategories);
         $toolCatData   = array_values($toolCategories);
+
+        // ── Comprehensive Tool & Equipment Utilization Matrix ───────────────
+        $toolMatrixMap = [];
+        foreach ($filteredToolTransactions as $ttx) {
+            $roomName  = $ttx->room?->name;
+            $borrower  = $ttx->borrower_name;
+            $deptShort = $ttx->departmentShort() ?: 'General';
+
+            if ($ttx->items->isNotEmpty()) {
+                foreach ($ttx->items as $item) {
+                    $tool = $item->tool;
+                    $toolId = $item->tool_id ?: ($tool?->id ?? 0);
+                    $toolName = $tool?->name ?? 'Tool #' . $toolId;
+                    $category = $tool?->category ?? 'General Equipment';
+
+                    if (! isset($toolMatrixMap[$toolId])) {
+                        $toolMatrixMap[$toolId] = [
+                            'tool_id'        => $toolId,
+                            'name'           => $toolName,
+                            'category'       => $category,
+                            'total_borrowed' => 0,
+                            'total_returned' => 0,
+                            'sessions'       => 0,
+                            'rooms'          => [],
+                            'borrowers'      => [],
+                            'departments'    => [],
+                        ];
+                    }
+
+                    $toolMatrixMap[$toolId]['total_borrowed'] += $item->quantity_borrowed;
+                    $toolMatrixMap[$toolId]['total_returned'] += $item->quantity_returned;
+                    $toolMatrixMap[$toolId]['sessions']++;
+
+                    $locKey = $roomName ? "Room {$roomName}" : 'Standalone';
+                    $toolMatrixMap[$toolId]['rooms'][$locKey] = ($toolMatrixMap[$toolId]['rooms'][$locKey] ?? 0) + $item->quantity_borrowed;
+
+                    if ($borrower) {
+                        $toolMatrixMap[$toolId]['borrowers'][$borrower] = ($toolMatrixMap[$toolId]['borrowers'][$borrower] ?? 0) + $item->quantity_borrowed;
+                    }
+                    $toolMatrixMap[$toolId]['departments'][$deptShort] = ($toolMatrixMap[$toolId]['departments'][$deptShort] ?? 0) + $item->quantity_borrowed;
+                }
+            } elseif ($ttx->tool) {
+                $tool = $ttx->tool;
+                $toolId = $tool->id;
+                $toolName = $tool->name;
+                $category = $tool->category ?? 'General Equipment';
+
+                if (! isset($toolMatrixMap[$toolId])) {
+                    $toolMatrixMap[$toolId] = [
+                        'tool_id'        => $toolId,
+                        'name'           => $toolName,
+                        'category'       => $category,
+                        'total_borrowed' => 0,
+                        'total_returned' => 0,
+                        'sessions'       => 0,
+                        'rooms'          => [],
+                        'borrowers'      => [],
+                        'departments'    => [],
+                    ];
+                }
+
+                $toolMatrixMap[$toolId]['total_borrowed'] += $ttx->quantity;
+                $toolMatrixMap[$toolId]['total_returned'] += ($ttx->status === 'returned' ? $ttx->quantity : 0);
+                $toolMatrixMap[$toolId]['sessions']++;
+
+                $locKey = $roomName ? "Room {$roomName}" : 'Standalone';
+                $toolMatrixMap[$toolId]['rooms'][$locKey] = ($toolMatrixMap[$toolId]['rooms'][$locKey] ?? 0) + $ttx->quantity;
+
+                if ($borrower) {
+                    $toolMatrixMap[$toolId]['borrowers'][$borrower] = ($toolMatrixMap[$toolId]['borrowers'][$borrower] ?? 0) + $ttx->quantity;
+                }
+                $toolMatrixMap[$toolId]['departments'][$deptShort] = ($toolMatrixMap[$toolId]['departments'][$deptShort] ?? 0) + $ttx->quantity;
+            }
+        }
+
+        // Sort by total borrowed descending
+        usort($toolMatrixMap, fn($a, $b) => $b['total_borrowed'] <=> $a['total_borrowed']);
+        $toolAuditMatrix = array_values($toolMatrixMap);
 
         // ── 11. Daily Timeline (Last 14 Days) ────────────────────────────────
         $days = collect(range(13, 0))->map(fn ($d) => now()->subDays($d)->format('Y-m-d'));
@@ -610,6 +702,9 @@ class ReportController extends Controller
             'totalToolTransactions',
             'returnedToolCount',
             'totalToolUnitsBorrowed',
+            'totalToolUnitsReturned',
+            'toolReturnRate',
+            'toolAuditMatrix',
             'topToolLabels',
             'topToolData',
             'toolCatLabels',
