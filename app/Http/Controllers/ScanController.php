@@ -54,7 +54,7 @@ class ScanController extends Controller
 
         $faculties = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
         $subjects  = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
-        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
+        $softwareCatalog = Transaction::softwareCatalog();
 
         return view('scan.room', compact('room', 'openTransactions', 'faculties', 'subjects', 'softwareCatalog'));
     }

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\FacultyController;
 use App\Http\Controllers\Admin\QrController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RoomController;
+use App\Http\Controllers\Admin\SoftwareController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\TransactionController;
@@ -113,6 +114,10 @@ Route::middleware(['auth'])->group(function () {
 
             // Room management
             Route::resource('rooms', RoomController::class);
+
+            // Software management
+            Route::post('software/{software}/toggle', [SoftwareController::class, 'toggle'])->name('software.toggle');
+            Route::resource('software', SoftwareController::class);
 
             // User management
             Route::resource('users', \App\Http\Controllers\Admin\UserController::class);

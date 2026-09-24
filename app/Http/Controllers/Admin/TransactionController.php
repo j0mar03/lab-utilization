@@ -133,7 +133,7 @@ class TransactionController extends Controller
         $tools     = Tool::where('is_active', true)->orderBy('department')->orderBy('category')->orderBy('name')->get();
         $faculties = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
         $subjects  = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
-        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
+        $softwareCatalog = Transaction::softwareCatalog();
 
         return view('admin.transactions.create', compact('rooms', 'tools', 'faculties', 'subjects', 'softwareCatalog'));
     }
@@ -675,7 +675,7 @@ class TransactionController extends Controller
         $tools           = Tool::where('is_active', true)->orderBy('department')->orderBy('category')->orderBy('name')->get();
         $faculties       = Faculty::where('is_active', true)->orderBy('department')->orderBy('name')->get();
         $subjects        = Subject::where('is_active', true)->orderBy('department')->orderBy('code')->get();
-        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
+        $softwareCatalog = Transaction::softwareCatalog(false);
 
         return view('admin.transactions.edit', compact('transaction', 'rooms', 'tools', 'faculties', 'subjects', 'softwareCatalog'));
     }

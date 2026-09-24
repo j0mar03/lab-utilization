@@ -814,11 +814,17 @@
 
                                     <div class="mt-2 flex items-center gap-1.5 flex-wrap">
                                         <span class="text-[10px] text-gray-400">Target Depts:</span>
-                                        @foreach ($sw['departments'] as $tDept)
-                                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-mono">
-                                                {{ $tDept }}
+                                        @if (!empty($sw['departments']))
+                                            @foreach ((array) $sw['departments'] as $tDept)
+                                                <span class="text-[10px] px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-mono">
+                                                    {{ $tDept }}
+                                                </span>
+                                            @endforeach
+                                        @else
+                                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-400 font-mono">
+                                                All
                                             </span>
-                                        @endforeach
+                                        @endif
 
                                         @if (!empty($deptBreakdown))
                                             <span class="text-[10px] text-gray-400 ml-1">| By Dept:</span>

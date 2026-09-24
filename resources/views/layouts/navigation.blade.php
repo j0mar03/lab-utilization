@@ -43,6 +43,10 @@
                             {{ __('🔧 Tools') }}
                         </x-nav-link>
 
+                        <x-nav-link :href="route('admin.software.index')" :active="request()->routeIs('admin.software.*')">
+                            {{ __('💻 Software') }}
+                        </x-nav-link>
+
                         <x-nav-link :href="route('admin.qr.rooms')" :active="request()->routeIs('admin.qr.*')">
                             {{ __('📱 QR Badges') }}
                         </x-nav-link>
@@ -141,6 +145,10 @@
 
                 <x-responsive-nav-link :href="route('admin.tools.index')" :active="request()->routeIs('admin.tools.*')">
                     {{ __('🔧 Tools') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.software.index')" :active="request()->routeIs('admin.software.*')">
+                    {{ __('💻 Software') }}
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.qr.rooms')" :active="request()->routeIs('admin.qr.*')">

@@ -401,11 +401,11 @@ class ReportController extends Controller
             ? round(($totalSoftwareRoomSessions / $totalRoomTransactions) * 100, 1)
             : 0;
 
-        $softwareCatalog = Transaction::SOFTWARE_CATALOG;
+        $softwareCatalog = Transaction::softwareCatalog(false);
 
         // Computer Labs Specific Audit Matrix
         $compLabMatrix = [];
-        $computerLabRooms = Room::whereIn('name', Room::COMPUTER_LABS)->orderBy('name')->get();
+        $computerLabRooms = Room::computerLabs()->orderBy('name')->get();
 
         foreach ($computerLabRooms as $clRoom) {
             $clTxs = $compLabTransactions->filter(fn ($tx) => $tx->room_id === $clRoom->id);

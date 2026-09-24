@@ -71,6 +71,14 @@ class Transaction extends Model
         ],
     ];
 
+    /**
+     * Get the dynamic software catalog from the database with graceful fallback.
+     */
+    public static function softwareCatalog(bool $onlyActive = true): array
+    {
+        return Software::asCatalogArray($onlyActive);
+    }
+
     protected $fillable = [
         'user_id',
         'room_id',
