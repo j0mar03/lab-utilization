@@ -29,3 +29,11 @@ Schedule::command('lab:close-stale-sessions')
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/stale-sessions.log'));
+
+// Dispatch daily utilization summary (rooms, tools, software) to Telegram group at 7:00 PM
+Schedule::command('lab:send-telegram-summary --date=today')
+    ->dailyAt('19:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/telegram-daily-summary.log'));
+

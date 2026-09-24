@@ -11,6 +11,20 @@
                 </p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
+                {{-- Send Summary to Telegram --}}
+                <form method="POST" action="{{ route('admin.reports.send-telegram') }}" class="inline"
+                      onsubmit="return confirm('Send the utilization summary for the active period directly to the lab Telegram group?');">
+                    @csrf
+                    <input type="hidden" name="start_date" value="{{ request('date_from') }}">
+                    <input type="hidden" name="end_date" value="{{ request('date_to') }}">
+                    <button type="submit"
+                            title="Dispatch current summary to Telegram"
+                            class="inline-flex items-center gap-1.5 text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold px-3.5 py-2 rounded-lg shadow-sm transition">
+                        <span>📱</span>
+                        <span>Send to Telegram</span>
+                    </button>
+                </form>
+
                 <a href="{{ route('admin.reports.audit', request()->query()) }}"
                    target="_blank"
                    class="inline-flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-lg shadow-sm transition">
@@ -28,6 +42,25 @@
 
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
+
+            {{-- Flash Messages --}}
+            @if (session('success'))
+                <div class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-xl px-4 py-3 text-sm flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <span>✅</span>
+                        <span>{{ session('success') }}</span>
+                    </div>
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-300 rounded-xl px-4 py-3 text-sm flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>{{ session('error') }}</span>
+                    </div>
+                </div>
+            @endif
 
             {{-- ═══════════════════════════════════════════════════════════════ --}}
             {{-- MULTI-DIMENSIONAL AUDIT FILTER BAR                              --}}

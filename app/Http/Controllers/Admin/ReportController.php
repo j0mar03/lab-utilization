@@ -735,4 +735,29 @@ class ReportController extends Controller
             'activeFilters'
         );
     }
+
+    /**
+     * Dispatch an on-demand utilization summary directly to the Telegram group.
+     */
+    public function sendTelegramSummary(Request $request, \App\Services\TelegramService $telegram): \Illuminate\Http\RedirectResponse
+    {
+        $startDate = $request->filled('start_date')
+            ? \Carbon\Carbon::parse($request->input('start_date'))->startOfDay()
+            : now()->startOfDay();
+
+        $endDate = $request->filled('end_date')
+            ? \Carbon\Carbon::parse($request->input('end_date'))->endOfDay()
+            : now()->endOfDay();
+
+        $title = $request->input('summary_title');
+
+        $result = $telegram->sendUtilizationSummary($startDate, $endDate, null, $title);
+
+        if ($result['success']) {
+            $rangeStr = $startDate->format('M d, Y') . ($startDate->isSameDay($endDate) ? '' : ' to ' . $endDate->format('M d, Y'));
+            return back()->with('success', "Utilization summary for {$rangeStr} has been dispatched to Telegram.");
+        }
+
+        return back()->with('error', $result['message']);
+    }
 }

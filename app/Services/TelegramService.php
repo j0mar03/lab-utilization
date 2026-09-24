@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\NotificationLog;
+use App\Models\Room;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -251,6 +252,185 @@ class TelegramService
                 'message' => 'Connection failed: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Build a formatted markdown summary message for room, tool, and software utilization.
+     */
+     public function buildUtilizationSummaryMessage(
+        \Carbon\CarbonInterface $startDate,
+        \Carbon\CarbonInterface $endDate,
+        ?string $title = null
+    ): string {
+        $txs = Transaction::whereBetween('checked_out_at', [$startDate, $endDate])
+            ->with(['room', 'tool', 'items.tool'])
+            ->get();
+
+        $roomTxs = $txs->whereNotNull('room_id');
+
+        $isSameDay = $startDate->isSameDay($endDate);
+        $dateStr   = $isSameDay
+            ? $startDate->format('l, M d, Y')
+            : $startDate->format('M d, Y') . ' — ' . $endDate->format('M d, Y');
+
+        $headerTitle = $title ?: ($isSameDay ? 'DAILY LAB UTILIZATION SUMMARY' : 'LAB UTILIZATION PERIOD SUMMARY');
+
+        // Total Counts
+        $totalSessions = $txs->count();
+        $returnedCount = $txs->where('status', 'returned')->count();
+        $activeCount   = $txs->whereIn('status', ['open', 'partially_returned', 'overdue'])->count();
+
+        // ── 1. ROOMS ──────────────────────────────────────────────────────────
+        $roomCounts = [];
+        $totalRoomMinutes = 0;
+        foreach ($roomTxs as $tx) {
+            $rName = $tx->room?->name ?? ('Room #' . $tx->room_id);
+            $roomCounts[$rName] = ($roomCounts[$rName] ?? 0) + 1;
+
+            if ($tx->checked_out_at) {
+                $end = $tx->returned_at ?: now();
+                $totalRoomMinutes += max(1, (int) $tx->checked_out_at->diffInMinutes($end));
+            }
+        }
+        arsort($roomCounts);
+        $totalRoomHours = round($totalRoomMinutes / 60, 1);
+        $currentlyOccupied = Room::occupied()->get();
+
+        // ── 2. TOOLS ──────────────────────────────────────────────────────────
+        $toolUnitsBorrowed = 0;
+        $toolCounts = [];
+        foreach ($txs as $tx) {
+            if ($tx->items && $tx->items->isNotEmpty()) {
+                foreach ($tx->items as $item) {
+                    $tName = $item->tool?->name ?? 'Tool';
+                    $qty = $item->quantity_borrowed ?: 1;
+                    $toolUnitsBorrowed += $qty;
+                    $toolCounts[$tName] = ($toolCounts[$tName] ?? 0) + $qty;
+                }
+            } elseif ($tx->tool) {
+                $tName = $tx->tool->name;
+                $qty = $tx->quantity ?: 1;
+                $toolUnitsBorrowed += $qty;
+                $toolCounts[$tName] = ($toolCounts[$tName] ?? 0) + $qty;
+            }
+        }
+        arsort($toolCounts);
+
+        $activeToolsCount = Transaction::whereIn('status', ['open', 'partially_returned', 'overdue'])
+            ->where(function ($q) {
+                $q->whereNotNull('tool_id')->orWhereHas('items');
+            })->count();
+        $overdueCount = Transaction::where('status', 'overdue')->count();
+
+        // ── 3. SOFTWARE ───────────────────────────────────────────────────────
+        $compLabSessions = 0;
+        $swCounts = [];
+        foreach ($roomTxs as $tx) {
+            if ($tx->hasSoftwareUtilized()) {
+                $compLabSessions++;
+                foreach ((array) $tx->software_utilized as $sw) {
+                    $swCounts[$sw] = ($swCounts[$sw] ?? 0) + 1;
+                }
+            }
+        }
+        arsort($swCounts);
+
+        // ── Build Message ─────────────────────────────────────────────────────
+        $msg  = "📊 *{$headerTitle}*\n";
+        $msg .= "📅 *Date:* {$dateStr}\n";
+        $msg .= "─────────────────────────\n";
+        $msg .= "👥 *Total Activity:* {$totalSessions} transactions ({$returnedCount} closed, {$activeCount} active)\n\n";
+
+        // Room Section
+        $msg .= "🏫 *ROOMS UTILIZATION:*\n";
+        $msg .= "• Total Sessions: *{$roomTxs->count()}* (~{$totalRoomHours} hrs)\n";
+        if (!empty($roomCounts)) {
+            $msg .= "• Top Utilized Rooms:\n";
+            $topRooms = array_slice($roomCounts, 0, 4, true);
+            foreach ($topRooms as $rName => $count) {
+                $msg .= "   - {$rName}: {$count} session" . ($count === 1 ? '' : 's') . "\n";
+            }
+        } else {
+            $msg .= "• Top Rooms: None recorded\n";
+        }
+        $occCount = $currentlyOccupied->count();
+        if ($occCount > 0) {
+            $occList = $currentlyOccupied->pluck('name')->join(', ');
+            $msg .= "• Active Occupancy: *{$occCount} room(s) [{$occList}]*\n\n";
+        } else {
+            $msg .= "• Active Occupancy: *All rooms vacant 🟢*\n\n";
+        }
+
+        // Tool Section
+        $msg .= "🔧 *TOOLS & EQUIPMENT:*\n";
+        $msg .= "• Units Borrowed: *{$toolUnitsBorrowed}*\n";
+        if (!empty($toolCounts)) {
+            $msg .= "• Most Borrowed Equipment:\n";
+            $topTools = array_slice($toolCounts, 0, 4, true);
+            foreach ($topTools as $tName => $qty) {
+                $msg .= "   - {$tName} (×{$qty})\n";
+            }
+        } else {
+            $msg .= "• Most Borrowed: None recorded\n";
+        }
+        $msg .= "• Active Loans in Field: *{$activeToolsCount}*\n";
+        $msg .= "• Overdue Alerts: *" . ($overdueCount > 0 ? "🚨 {$overdueCount} overdue!" : "0 overdue 🟢") . "*\n\n";
+
+        // Software Section
+        $msg .= "💻 *SOFTWARE & APPLICATIONS:*\n";
+        $msg .= "• Computer Lab Sessions: *{$compLabSessions}*\n";
+        if (!empty($swCounts)) {
+            $msg .= "• Top Software Utilized:\n";
+            $topSw = array_slice($swCounts, 0, 5, true);
+            foreach ($topSw as $swName => $count) {
+                $msg .= "   - {$swName}: {$count} session" . ($count === 1 ? '' : 's') . "\n";
+            }
+        } else {
+            $msg .= "• Software Utilized: None recorded in this period\n";
+        }
+
+        $msg .= "─────────────────────────\n";
+        $msg .= "🏛️ *PUP Institute of Technology (ITECH)*\n";
+        $msg .= "🕒 _Report Generated: " . now()->format('M d, Y g:i A') . "_";
+
+        return $msg;
+    }
+
+    /**
+     * Send the utilization summary message to a Telegram chat.
+     */
+    public function sendUtilizationSummary(
+        \Carbon\CarbonInterface $startDate,
+        \Carbon\CarbonInterface $endDate,
+        ?string $chatId = null,
+        ?string $title = null
+    ): array {
+        $targetChatId = $chatId ?: $this->defaultChatId;
+
+        if (empty($this->botToken)) {
+            return [
+                'success' => false,
+                'message' => 'TELEGRAM_BOT_TOKEN is not configured in .env',
+            ];
+        }
+
+        if (empty($targetChatId)) {
+            return [
+                'success' => false,
+                'message' => 'TELEGRAM_DEFAULT_CHAT_ID is not configured in .env',
+            ];
+        }
+
+        $message = $this->buildUtilizationSummaryMessage($startDate, $endDate, $title);
+        $sent    = $this->send($message, $targetChatId);
+
+        return [
+            'success' => $sent,
+            'message' => $sent
+                ? 'Utilization summary successfully sent to Telegram.'
+                : 'Failed to send summary to Telegram. Check log files for details.',
+            'text'    => $message,
+        ];
     }
 
     // ─────────────────────────────────────────────────────────────────────────

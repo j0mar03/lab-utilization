@@ -96,6 +96,7 @@ Route::middleware(['auth'])->group(function () {
             // Phase 3: Reports, Charts & Audit Matrices
             Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
             Route::get('/reports/audit', [ReportController::class, 'audit'])->name('reports.audit');
+            Route::post('/reports/send-telegram', [ReportController::class, 'sendTelegramSummary'])->name('reports.send-telegram');
 
             // Phase 2: Printable QR code sheets
             Route::prefix('qr')->name('qr.')->group(function () {
