@@ -161,6 +161,51 @@
             line-height: 1.5;
         }
 
+        .info-link-box {
+            background-color: #f5f3ff;
+            border: 1px solid #ddd6fe;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin: 14px 0;
+            font-size: 12px;
+            color: #5b21b6;
+            line-height: 1.5;
+        }
+        .info-link-box a {
+            color: #6d28d9;
+            font-weight: 700;
+            text-decoration: underline;
+            word-break: break-all;
+        }
+
+        .support-box {
+            background-color: #fff7ed;
+            border-left: 4px solid #ea580c;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: #9a3412;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            line-height: 1.5;
+        }
+
+        .feedback-box {
+            background-color: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 12px;
+            color: #065f46;
+            margin: 16px 0;
+            line-height: 1.5;
+        }
+        .feedback-box a {
+            color: #047857;
+            font-weight: 700;
+            text-decoration: underline;
+            word-break: break-all;
+        }
+
         .footer {
             background-color: #f9fafb;
             padding: 20px;
@@ -263,21 +308,98 @@
                     <span>💻</span>
                     <span>Computer Laboratory Guidelines & Regulations</span>
                 </h3>
-                <div class="guideline-item">
-                    • <strong>Strictly No Food & Drinks:</strong> Liquids and food items are prohibited near all computer workstations, keyboards, and server racks.
+
+                {{-- Portal Link: Computer Laboratory PC --}}
+                <div class="info-link-box" style="margin-top: 0; margin-bottom: 14px;">
+                    <strong>ℹ️ For More Details Please Visit here:</strong><br>
+                    Computer Laboratory PC link:
+                    <a href="https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/ITECH%20Computer%20Laboratory.aspx" target="_blank">
+                        https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/ITECH%20Computer%20Laboratory.aspx
+                    </a>
                 </div>
-                <div class="guideline-item">
-                    • <strong>Save Files to Cloud / USB:</strong> Workstations are deep-frozen and reset regularly. Remind students to save coursework to Google Drive, MS OneDrive, or personal USB drives.
+
+                {{-- Classroom Management --}}
+                <div style="margin-bottom: 14px;">
+                    <strong style="color: #581c87; font-size: 13px; display: block; margin-bottom: 6px;">
+                        🏫 Classroom Management:
+                    </strong>
+                    <div class="guideline-item">
+                        • Please remind your students to follow the computer lab guidelines and respect the shared resources.
+                    </div>
+                    <div class="guideline-item">
+                        • Food and drinks are strictly prohibited inside the lab.
+                    </div>
+                    <div class="guideline-item">
+                        • Ensure that your class leaves the lab in an orderly manner at the end of the session.
+                    </div>
                 </div>
-                <div class="guideline-item">
-                    • <strong>Authorized Software Only:</strong> Run only department-approved software. Altering system settings or downloading unauthorized executables is prohibited.
+
+                {{-- Standard Operational Rules --}}
+                <div style="border-top: 1px dashed #e9d5ff; padding-top: 10px; margin-top: 10px;">
+                    <div class="guideline-item">
+                        • <strong>Strictly No Food & Drinks:</strong> Liquids and food items are prohibited near all computer workstations, keyboards, and server racks.
+                    </div>
+                    <div class="guideline-item">
+                        • <strong>Save Files to Cloud / USB:</strong> Workstations are deep-frozen and reset regularly. Remind students to save coursework to Google Drive, MS OneDrive, or personal USB drives.
+                    </div>
+                    <div class="guideline-item">
+                        • <strong>Authorized Software Only:</strong> Run only department-approved software. Altering system settings or downloading unauthorized executables is prohibited.
+                    </div>
+                    <div class="guideline-item">
+                        • <strong>Post-Class Shutdown:</strong> Ensure all computer terminals and monitors are properly shut down before dismissing the class.
+                    </div>
+                    <div class="guideline-item">
+                        • <strong>Power & Air Conditioning:</strong> Turn off all air-conditioning units, lights, and projectors upon exiting.
+                    </div>
                 </div>
-                <div class="guideline-item">
-                    • <strong>Post-Class Shutdown:</strong> Ensure all computer terminals and monitors are properly shut down before dismissing the class.
+
+                {{-- Portal Link: Laboratory Management Site Information --}}
+                <div class="info-link-box" style="margin-top: 14px; margin-bottom: 0;">
+                    <strong>ℹ️ For More Details Please Visit here:</strong><br>
+                    Laboratory Management Site Information link :
+                    <a href="https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/Laboratory-Management.aspx?fbclid=IwAR2ImbHU_RiJpIqAJbwOqkr0w_H8Q_eYFyk7Sj5F1lU65Ha6uJ-rgD3Tb2U" target="_blank">
+                        https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/Laboratory-Management.aspx?fbclid=IwAR2ImbHU_RiJpIqAJbwOqkr0w_H8Q_eYFyk7Sj5F1lU65Ha6uJ-rgD3Tb2U
+                    </a>
                 </div>
-                <div class="guideline-item">
-                    • <strong>Power & Air Conditioning:</strong> Turn off all air-conditioning units, lights, and projectors upon exiting.
-                </div>
+            </div>
+
+            {{-- Technical Support --}}
+            <div class="support-box">
+                <strong style="color: #9a3412; font-size: 13px; display: block; margin-bottom: 4px;">
+                    🛠️ Technical Support:
+                </strong>
+                <p style="margin: 0 0 6px 0;">
+                    For any technical issues, equipment concerns, or assistance needed, please report directly to the <strong>Laboratory Office (Room 109 and Room 206)</strong> when you return the key.
+                </p>
+                <p style="margin: 0;">
+                    We appreciate your cooperation in keeping us informed of any problems so we can address them promptly.
+                </p>
+            </div>
+
+            {{-- Feedback & Rating Section --}}
+            <div class="feedback-box">
+                <strong style="color: #065f46; font-size: 13px; display: block; margin-bottom: 6px;">
+                    📋 FEEDBACK:
+                </strong>
+                <p style="margin: 0 0 6px 0; font-weight: 600;">
+                    Please don't forget to rate our service or leave a comment!
+                </p>
+                <p style="margin: 0 0 8px 0;">
+                    Your feedback helps us further improve our facilities and services. Simply scan the QR code located at the back of the room door to share your experience. or click this link:
+                </p>
+                <p style="margin: 0 0 8px 0;">
+                    👉 <a href="https://docs.google.com/forms/d/e/1FAIpQLSeJpqK2QkgW24AMcsJZL_CqeT0fa5Bu-PZXf40JAIo7qPdOmA/viewform?pli=1" target="_blank">
+                        https://docs.google.com/forms/d/e/1FAIpQLSeJpqK2QkgW24AMcsJZL_CqeT0fa5Bu-PZXf40JAIo7qPdOmA/viewform?pli=1
+                    </a>
+                </p>
+                <p style="margin: 0;">
+                    We value your input and continuously work to provide the best learning environment for you and your students.
+                </p>
+            </div>
+
+            {{-- Closing Guidelines Request --}}
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #4b5563; line-height: 1.5; margin: 16px 0;">
+                We kindly request that you familiarize yourself and your students with these guidelines to ensure a productive and efficient learning experience. If you have any further questions or concerns, please do not hesitate to reach out to us.
             </div>
         @elseif ($roomType === 'engineering_lab')
             {{-- Engineering / Mechanical Lab Guidelines --}}
