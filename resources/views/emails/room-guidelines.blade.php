@@ -311,33 +311,22 @@
 
                 {{-- Portal Link: Computer Laboratory PC --}}
                 <div class="info-link-box" style="margin-top: 0; margin-bottom: 14px;">
-                    <strong>ℹ️ For More Details Please Visit here:</strong><br>
-                    Computer Laboratory PC link:
-                    <a href="https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/ITECH%20Computer%20Laboratory.aspx" target="_blank">
-                        https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/ITECH%20Computer%20Laboratory.aspx
-                    </a>
+                    ℹ️ For more details on laboratory computers and workstation specifications, please visit the <a href="https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/ITECH%20Computer%20Laboratory.aspx" target="_blank">ITECH Computer Laboratory PC Portal ↗</a>.
                 </div>
 
-                {{-- Classroom Management --}}
+                {{-- Classroom Management & Guidelines --}}
                 <div style="margin-bottom: 14px;">
-                    <strong style="color: #581c87; font-size: 13px; display: block; margin-bottom: 6px;">
-                        🏫 Classroom Management:
+                    <strong style="color: #581c87; font-size: 13px; display: block; margin-bottom: 8px;">
+                        🏫 Classroom Management & Laboratory Guidelines:
                     </strong>
                     <div class="guideline-item">
-                        • Please remind your students to follow the computer lab guidelines and respect the shared resources.
+                        • <strong>Shared Resources:</strong> Please remind students to follow the computer lab guidelines and respect the shared facilities.
                     </div>
                     <div class="guideline-item">
-                        • Food and drinks are strictly prohibited inside the lab.
+                        • <strong>Strictly No Food & Drinks:</strong> Food and drinks are strictly prohibited inside the lab near computer workstations, keyboards, and server racks.
                     </div>
                     <div class="guideline-item">
-                        • Ensure that your class leaves the lab in an orderly manner at the end of the session.
-                    </div>
-                </div>
-
-                {{-- Standard Operational Rules --}}
-                <div style="border-top: 1px dashed #e9d5ff; padding-top: 10px; margin-top: 10px;">
-                    <div class="guideline-item">
-                        • <strong>Strictly No Food & Drinks:</strong> Liquids and food items are prohibited near all computer workstations, keyboards, and server racks.
+                        • <strong>Orderly Dismissal:</strong> Ensure that your class leaves the lab tidy and in an orderly manner at the end of the session.
                     </div>
                     <div class="guideline-item">
                         • <strong>Save Files to Cloud / USB:</strong> Workstations are deep-frozen and reset regularly. Remind students to save coursework to Google Drive, MS OneDrive, or personal USB drives.
@@ -355,11 +344,7 @@
 
                 {{-- Portal Link: Laboratory Management Site Information --}}
                 <div class="info-link-box" style="margin-top: 14px; margin-bottom: 0;">
-                    <strong>ℹ️ For More Details Please Visit here:</strong><br>
-                    Laboratory Management Site Information link :
-                    <a href="https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/Laboratory-Management.aspx?fbclid=IwAR2ImbHU_RiJpIqAJbwOqkr0w_H8Q_eYFyk7Sj5F1lU65Ha6uJ-rgD3Tb2U" target="_blank">
-                        https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/Laboratory-Management.aspx?fbclid=IwAR2ImbHU_RiJpIqAJbwOqkr0w_H8Q_eYFyk7Sj5F1lU65Ha6uJ-rgD3Tb2U
-                    </a>
+                    ℹ️ For more details on policies and operational announcements, please visit the <a href="https://pupedu.sharepoint.com/sites/InstituteofTechnologyITECH/SitePages/Laboratory-Management.aspx?fbclid=IwAR2ImbHU_RiJpIqAJbwOqkr0w_H8Q_eYFyk7Sj5F1lU65Ha6uJ-rgD3Tb2U" target="_blank">ITECH Laboratory Management Site ↗</a>.
                 </div>
             </div>
 
@@ -385,21 +370,11 @@
                     Please don't forget to rate our service or leave a comment!
                 </p>
                 <p style="margin: 0 0 8px 0;">
-                    Your feedback helps us further improve our facilities and services. Simply scan the QR code located at the back of the room door to share your experience. or click this link:
-                </p>
-                <p style="margin: 0 0 8px 0;">
-                    👉 <a href="https://docs.google.com/forms/d/e/1FAIpQLSeJpqK2QkgW24AMcsJZL_CqeT0fa5Bu-PZXf40JAIo7qPdOmA/viewform?pli=1" target="_blank">
-                        https://docs.google.com/forms/d/e/1FAIpQLSeJpqK2QkgW24AMcsJZL_CqeT0fa5Bu-PZXf40JAIo7qPdOmA/viewform?pli=1
-                    </a>
+                    Your feedback helps us further improve our facilities and services. Simply scan the QR code located at the back of the room door to share your experience, or <a href="https://docs.google.com/forms/d/e/1FAIpQLSeJpqK2QkgW24AMcsJZL_CqeT0fa5Bu-PZXf40JAIo7qPdOmA/viewform?pli=1" target="_blank">click here to submit your feedback & rating ↗</a>.
                 </p>
                 <p style="margin: 0;">
                     We value your input and continuously work to provide the best learning environment for you and your students.
                 </p>
-            </div>
-
-            {{-- Closing Guidelines Request --}}
-            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #4b5563; line-height: 1.5; margin: 16px 0;">
-                We kindly request that you familiarize yourself and your students with these guidelines to ensure a productive and efficient learning experience. If you have any further questions or concerns, please do not hesitate to reach out to us.
             </div>
         @elseif ($roomType === 'engineering_lab')
             {{-- Engineering / Mechanical Lab Guidelines --}}
