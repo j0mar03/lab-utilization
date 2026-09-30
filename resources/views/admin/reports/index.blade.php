@@ -358,7 +358,171 @@
             </div>
 
             {{-- ═══════════════════════════════════════════════════════════════ --}}
-            {{-- SECTION 2: AUDIT CROSS-MATRIX — ROOMS BY STUDENT DEPARTMENT     --}}
+            {{-- SECTION 2: PEAK ACTIVITY & TRANSACTION TIMELINE (ROOM & TOOL)  --}}
+            {{-- ═══════════════════════════════════════════════════════════════ --}}
+            <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700 gap-2">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                            <span>📈</span>
+                            <span>Peak Utilization & Transaction Timeline (Rooms & Tools)</span>
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Temporal distribution of room checkouts and equipment circulations to identify peak transaction dates and high-traffic days of the week
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        @if ($peakDateFormatted !== 'N/A')
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                <span>📅 Peak Date:</span>
+                                <strong>{{ $peakDateFormatted }}</strong>
+                                <span class="text-[11px] font-semibold text-blue-500">({{ $peakDateTotal }} checkouts)</span>
+                            </span>
+                        @endif
+                        @if ($peakDowName !== 'N/A')
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                <span>📆 Busiest Day:</span>
+                                <strong>{{ $peakDowName }}</strong>
+                                <span class="text-[11px] font-semibold text-amber-500">({{ $peakDowTotal }} checkouts · {{ $peakDowPct }}%)</span>
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Two Main Graphs: By Date and By Day of Week --}}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {{-- 1. Daily Utilization Timeline by Date --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 class="font-bold text-sm text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                                        <span>📅</span>
+                                        <span>Transaction Volume by Date</span>
+                                    </h4>
+                                    <p class="text-xs text-gray-400 mt-0.5">
+                                        Daily room checkouts vs. tool circulation over time
+                                    </p>
+                                </div>
+                                @if ($peakDateFormatted !== 'N/A')
+                                    <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                        Peak: {{ $peakDateFormatted }}
+                                    </span>
+                                @endif
+                            </div>
+                            <div class="mt-4">
+                                <canvas id="dailyCombinedChart" height="190"></canvas>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <div class="flex items-center gap-3">
+                                <span class="flex items-center gap-1">
+                                    <span class="w-3 h-3 rounded bg-blue-600 inline-block"></span>
+                                    <span>Rooms ({{ number_format($totalRoomTransactions) }})</span>
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span>
+                                    <span>Tools ({{ number_format($totalToolTransactions) }})</span>
+                                </span>
+                            </div>
+                            <span>
+                                Highest Single Day: <strong class="text-gray-700 dark:text-gray-300">{{ $peakDateTotal }} tx</strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- 2. Weekly Traffic Distribution by Day of the Week --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 class="font-bold text-sm text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                                        <span>📆</span>
+                                        <span>Traffic by Day of the Week</span>
+                                    </h4>
+                                    <p class="text-xs text-gray-400 mt-0.5">
+                                        Weekly traffic patterns across Monday to Sunday
+                                    </p>
+                                </div>
+                                @if ($peakDowName !== 'N/A')
+                                    <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
+                                        Busiest: {{ $peakDowName }}
+                                    </span>
+                                @endif
+                            </div>
+                            <div class="mt-4">
+                                <canvas id="dowCombinedChart" height="190"></canvas>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <div class="flex items-center gap-3">
+                                <span class="flex items-center gap-1">
+                                    <span class="w-3 h-3 rounded bg-blue-600 inline-block"></span>
+                                    <span>Rooms</span>
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span>
+                                    <span>Tools</span>
+                                </span>
+                            </div>
+                            <span>
+                                Busiest Day: <strong class="text-amber-600 dark:text-amber-400">{{ $peakDowName }} ({{ $peakDowTotal }} tx)</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Operational Peak Insights Summary Cards --}}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-blue-100 dark:border-blue-900/40 shadow-xs flex items-start gap-3">
+                        <div class="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-lg">
+                            📅
+                        </div>
+                        <div>
+                            <span class="text-[11px] uppercase tracking-wider font-bold text-gray-400 block">Peak Transaction Date</span>
+                            <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                {{ $peakDateFormatted }}
+                            </span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                <strong>{{ $peakDateTotal }}</strong> checkouts recorded (<strong>{{ $peakDateRooms }}</strong> rooms, <strong>{{ $peakDateTools }}</strong> tools)
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-amber-100 dark:border-amber-900/40 shadow-xs flex items-start gap-3">
+                        <div class="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300 text-lg">
+                            📆
+                        </div>
+                        <div>
+                            <span class="text-[11px] uppercase tracking-wider font-bold text-gray-400 block">Busiest Day of the Week</span>
+                            <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                {{ $peakDowName }} ({{ $peakDowTotal }} transactions)
+                            </span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Generates <strong>{{ $peakDowPct }}%</strong> of all facility activity ({{ $peakDowRooms }} rooms + {{ $peakDowTools }} tools)
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900/40 shadow-xs flex items-start gap-3">
+                        <div class="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300 text-lg">
+                            👥
+                        </div>
+                        <div>
+                            <span class="text-[11px] uppercase tracking-wider font-bold text-gray-400 block">Operational Staffing Focus</span>
+                            <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                SA Counter Coverage
+                            </span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Ensure Student Assistants and laboratory master keys are pre-staged before morning rush on <strong>{{ $peakDowName }}s</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- ═══════════════════════════════════════════════════════════════ --}}
+            {{-- SECTION 3: AUDIT CROSS-MATRIX — ROOMS BY STUDENT DEPARTMENT     --}}
             {{-- ═══════════════════════════════════════════════════════════════ --}}
             <div class="space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700 gap-2">
@@ -1137,6 +1301,128 @@
                 }
             }
         });
+
+        // ── 1b. Combined Daily Timeline (Rooms & Tools) ──────────────────────
+        const dailyCombinedEl = document.getElementById('dailyCombinedChart');
+        if (dailyCombinedEl) {
+            new Chart(dailyCombinedEl, {
+                type: 'bar',
+                data: {
+                    labels: @json($dailyLabels),
+                    datasets: [
+                        {
+                            label: 'Room Checkouts',
+                            data: @json($dailyRoomData),
+                            backgroundColor: '#2563EB',
+                            borderRadius: 4,
+                            stack: 'dailyStack',
+                        },
+                        {
+                            label: 'Tool Circulation',
+                            data: @json($dailyToolData),
+                            backgroundColor: '#10B981',
+                            borderRadius: 4,
+                            stack: 'dailyStack',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { color: textColor, font: { size: 11, weight: '600' }, boxWidth: 12, padding: 15 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                footer: function(tooltipItems) {
+                                    let sum = 0;
+                                    tooltipItems.forEach(function(item) {
+                                        sum += item.parsed.y;
+                                    });
+                                    return 'Total Checkouts: ' + sum;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: { color: textColor, maxRotation: 45, minRotation: 0 },
+                            grid: { display: false }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: { stepSize: 2, color: textColor },
+                            grid: { color: gridColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── 1c. Combined Day of the Week Distribution (Rooms & Tools) ────────
+        const dowCombinedEl = document.getElementById('dowCombinedChart');
+        if (dowCombinedEl) {
+            new Chart(dowCombinedEl, {
+                type: 'bar',
+                data: {
+                    labels: @json($dowLabels),
+                    datasets: [
+                        {
+                            label: 'Room Checkouts',
+                            data: @json($dowRoomValues),
+                            backgroundColor: '#2563EB',
+                            borderRadius: 4,
+                            stack: 'dowStack',
+                        },
+                        {
+                            label: 'Tool Circulation',
+                            data: @json($dowToolValues),
+                            backgroundColor: '#10B981',
+                            borderRadius: 4,
+                            stack: 'dowStack',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { color: textColor, font: { size: 11, weight: '600' }, boxWidth: 12, padding: 15 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                footer: function(tooltipItems) {
+                                    let sum = 0;
+                                    tooltipItems.forEach(function(item) {
+                                        sum += item.parsed.y;
+                                    });
+                                    return 'Total on Day: ' + sum;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: { color: textColor },
+                            grid: { display: false }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: { stepSize: 2, color: textColor },
+                            grid: { color: gridColor }
+                        }
+                    }
+                }
+            });
+        }
 
         // ── 2. Daily Tool Checkouts ─────────────────────────────────────────
         new Chart(document.getElementById('dailyToolChart'), {

@@ -633,34 +633,120 @@ class ReportController extends Controller
         usort($toolMatrixMap, fn($a, $b) => $b['total_borrowed'] <=> $a['total_borrowed']);
         $toolAuditMatrix = array_values($toolMatrixMap);
 
-        // ── 11. Daily Timeline (Last 14 Days) ────────────────────────────────
-        $days = collect(range(13, 0))->map(fn ($d) => now()->subDays($d)->format('Y-m-d'));
+        // ── 11. Daily Timeline & Peak Utilization Analysis (Rooms & Tools) ────
+        // Determine intelligent date range:
+        // 1. If date_from and date_to filters are set, use that window.
+        // 2. Otherwise, find min and max transaction dates and show the active window (padded to at least 14 days).
+        $minDate = collect([$filteredRoomTransactions->min('checked_out_at'), $filteredToolTransactions->min('checked_out_at')])->filter()->min();
+        $maxDate = collect([$filteredRoomTransactions->max('checked_out_at'), $filteredToolTransactions->max('checked_out_at')])->filter()->max();
 
-        $dailyRoomCounts = [];
-        $dailyToolCounts = [];
+        if ($dateFrom && $dateTo) {
+            $startDate = Carbon::parse($dateFrom)->startOfDay();
+            $endDate   = Carbon::parse($dateTo)->endOfDay();
+        } elseif ($minDate && $maxDate) {
+            $startDate = $minDate->copy()->startOfDay();
+            $endDate   = $maxDate->copy()->endOfDay();
+            // Pad to at least 14 days for balanced chart visualization
+            if ($startDate->diffInDays($endDate) < 13) {
+                $endDate = $startDate->copy()->addDays(13)->endOfDay();
+            }
+            // If the latest transaction was within the past 14 days, extend to today
+            if ($endDate->lt(now()->endOfDay()) && $endDate->diffInDays(now()) <= 14) {
+                $endDate = now()->endOfDay();
+            }
+        } else {
+            $startDate = now()->subDays(13)->startOfDay();
+            $endDate   = now()->endOfDay();
+        }
+
+        // Limit maximum daily points to 90 to prevent chart overcrowding
+        if ($startDate->diffInDays($endDate) > 90) {
+            $startDate = $endDate->copy()->subDays(90)->startOfDay();
+        }
+
+        $days = collect();
+        $curr = $startDate->copy();
+        while ($curr->lte($endDate)) {
+            $days->push($curr->format('Y-m-d'));
+            $curr->addDay();
+        }
+
+        $dailyRoomCounts  = [];
+        $dailyToolCounts  = [];
+        $dailyTotalCounts = [];
+
         foreach ($days as $day) {
-            $dailyRoomCounts[$day] = $filteredRoomTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->format('Y-m-d') === $day)->count();
-            $dailyToolCounts[$day] = $filteredToolTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->format('Y-m-d') === $day)->count();
+            $rCount = $filteredRoomTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->format('Y-m-d') === $day)->count();
+            $tCount = $filteredToolTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->format('Y-m-d') === $day)->count();
+            $dailyRoomCounts[$day]  = $rCount;
+            $dailyToolCounts[$day]  = $tCount;
+            $dailyTotalCounts[$day] = $rCount + $tCount;
         }
 
-        $dailyLabels   = $days->map(fn ($d) => date('M d', strtotime($d)))->values();
-        $dailyRoomData = array_values($dailyRoomCounts);
-        $dailyToolData = array_values($dailyToolCounts);
+        $dailyLabels    = $days->map(fn ($d) => date('M d', strtotime($d)))->values()->toArray();
+        $dailyRoomData  = array_values($dailyRoomCounts);
+        $dailyToolData  = array_values($dailyToolCounts);
+        $dailyTotalData = array_values($dailyTotalCounts);
 
-        // Day of Week
-        $dowRoomData = [];
-        $dowToolData = [];
+        // Identify Peak Date
+        $peakDate = null;
+        $peakDateFormatted = 'N/A';
+        $peakDateTotal = 0;
+        $peakDateRooms = 0;
+        $peakDateTools = 0;
+
+        if (count($dailyTotalCounts) > 0 && max($dailyTotalCounts) > 0) {
+            $maxDailyVal = max($dailyTotalCounts);
+            foreach ($dailyTotalCounts as $dStr => $tot) {
+                if ($tot === $maxDailyVal) {
+                    $peakDate = $dStr;
+                    $peakDateFormatted = Carbon::parse($dStr)->format('M d, Y');
+                    $peakDateTotal = $tot;
+                    $peakDateRooms = $dailyRoomCounts[$dStr] ?? 0;
+                    $peakDateTools = $dailyToolCounts[$dStr] ?? 0;
+                    break;
+                }
+            }
+        }
+
+        // Day of Week (1 = Monday, ..., 7 = Sunday)
+        $dowRoomData  = [];
+        $dowToolData  = [];
+        $dowTotalData = [];
         for ($i = 1; $i <= 7; $i++) {
-            $dowRoomData[$i] = $filteredRoomTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->dayOfWeekIso === $i)->count();
-            $dowToolData[$i] = $filteredToolTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->dayOfWeekIso === $i)->count();
+            $rCount = $filteredRoomTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->dayOfWeekIso === $i)->count();
+            $tCount = $filteredToolTransactions->filter(fn ($t) => $t->checked_out_at && $t->checked_out_at->dayOfWeekIso === $i)->count();
+            $dowRoomData[$i]  = $rCount;
+            $dowToolData[$i]  = $tCount;
+            $dowTotalData[$i] = $rCount + $tCount;
         }
-        $dowLabels     = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        $dowRoomValues = array_values($dowRoomData);
-        $dowToolValues = array_values($dowToolData);
+
+        $dowLabels      = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        $dowFullNames   = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        $dowRoomValues  = array_values($dowRoomData);
+        $dowToolValues  = array_values($dowToolData);
+        $dowTotalValues = array_values($dowTotalData);
 
         // Total combined activity
         $totalTransactions = $totalRoomTransactions + $totalToolTransactions;
         $totalReturned     = $returnedRoomCount + $returnedToolCount;
+
+        // Identify Peak Day of Week
+        $peakDowName   = 'N/A';
+        $peakDowRooms  = 0;
+        $peakDowTools  = 0;
+        $peakDowTotal  = 0;
+        $peakDowPct    = 0.0;
+
+        $maxDowVal = count($dowTotalValues) > 0 ? max($dowTotalValues) : 0;
+        if ($maxDowVal > 0) {
+            $peakDowIdx = array_search($maxDowVal, $dowTotalValues);
+            $peakDowName  = $dowFullNames[$peakDowIdx];
+            $peakDowRooms = $dowRoomValues[$peakDowIdx];
+            $peakDowTools = $dowToolValues[$peakDowIdx];
+            $peakDowTotal = $maxDowVal;
+            $peakDowPct   = $totalTransactions > 0 ? round(($maxDowVal / $totalTransactions) * 100, 1) : 0.0;
+        }
 
         // ── 12. Filter Dropdown Options ──────────────────────────────────────
         $departmentsDropdown = ['DECET', 'DOMIT', 'DEMET'];
@@ -688,9 +774,21 @@ class ReportController extends Controller
             'dailyLabels',
             'dailyRoomData',
             'dailyToolData',
+            'dailyTotalData',
+            'peakDate',
+            'peakDateFormatted',
+            'peakDateTotal',
+            'peakDateRooms',
+            'peakDateTools',
             'dowLabels',
             'dowRoomValues',
             'dowToolValues',
+            'dowTotalValues',
+            'peakDowName',
+            'peakDowRooms',
+            'peakDowTools',
+            'peakDowTotal',
+            'peakDowPct',
             'totalRoomTransactions',
             'returnedRoomCount',
             'totalRoomHours',
