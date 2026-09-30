@@ -12,6 +12,16 @@
                 </h2>
             </div>
             <div class="flex items-center gap-2">
+                @if ($transaction->isRoom() && $transaction->borrower_email)
+                    <form method="POST" action="{{ route('admin.transactions.send-guidelines', $transaction) }}" class="inline"
+                          onsubmit="return confirm('Send or re-send the facility usage guidelines email to {{ $transaction->borrower_email }}?');">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex items-center gap-1 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+                            ✉️ Send Guidelines Email
+                        </button>
+                    </form>
+                @endif
                 <a href="{{ route('admin.transactions.edit', $transaction) }}"
                    class="inline-flex items-center gap-1 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg shadow-sm transition">
                     ✏️ Edit Transaction

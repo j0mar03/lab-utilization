@@ -420,6 +420,9 @@ class TransactionController extends Controller
         $itemCount = $transaction->items->count();
         if ($status === 'open') {
             $this->telegram->sendCheckoutNotification($transaction);
+            if ($type === 'room') {
+                $transaction->sendRoomGuidelinesEmail();
+            }
             if ($type === 'room' && $itemCount > 0) {
                 $msg = "Transaction #{$transaction->id} created successfully for Room {$transaction->room?->name} with {$itemCount} accessory/tool item(s) checked out.";
             } else {
@@ -934,5 +937,27 @@ class TransactionController extends Controller
             'Content-Type'        => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
+    }
+
+    /**
+     * Resend room guidelines email to borrower.
+     */
+    public function sendGuidelines(Transaction $transaction): RedirectResponse
+    {
+        if (!$transaction->isRoom()) {
+            return back()->with('error', 'Guidelines email can only be sent for room checkouts.');
+        }
+
+        if (empty($transaction->borrower_email)) {
+            return back()->with('error', 'Borrower has no email address associated with this transaction.');
+        }
+
+        $sent = $transaction->sendRoomGuidelinesEmail();
+
+        if ($sent) {
+            return back()->with('success', "Facility usage guidelines email has been dispatched to {$transaction->borrower_email}.");
+        }
+
+        return back()->with('error', 'Failed to dispatch email. Please verify your mail/SMTP server configuration in .env.');
     }
 }

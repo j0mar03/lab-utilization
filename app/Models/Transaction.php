@@ -122,6 +122,45 @@ class Transaction extends Model
         return implode(', ', (array) $this->software_utilized);
     }
 
+    /**
+     * Send facility usage guidelines email to borrower if room transaction and valid email exists.
+     */
+    public function sendRoomGuidelinesEmail(): bool
+    {
+        if (!$this->isRoom() || empty($this->borrower_email) || !filter_var($this->borrower_email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($this->borrower_email)
+                ->send(new \App\Mail\RoomCheckoutGuidelinesMail($this));
+
+            \Illuminate\Support\Facades\Log::info("Room guidelines email sent for Transaction #{$this->id} to {$this->borrower_email}");
+            return true;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Failed to send room guidelines email for Transaction #{$this->id}: " . $e->getMessage());
+
+            try {
+                \App\Models\NotificationLog::create([
+                    'transaction_id' => $this->id,
+                    'channel'        => 'email',
+                    'recipient'      => $this->borrower_email,
+                    'sent_at'        => now(),
+                    'success'        => false,
+                    'payload'        => [
+                        'room'     => $this->room?->name,
+                        'borrower' => $this->borrower_name,
+                    ],
+                    'error_message'  => $e->getMessage(),
+                ]);
+            } catch (\Throwable $inner) {
+                // Ignore audit failure
+            }
+
+            return false;
+        }
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Transaction $transaction) {

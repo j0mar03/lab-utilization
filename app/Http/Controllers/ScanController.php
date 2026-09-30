@@ -203,6 +203,7 @@ class ScanController extends Controller
 
         $transaction->load('room');
         $this->telegram->sendCheckoutNotification($transaction);
+        $transaction->sendRoomGuidelinesEmail();
 
         Log::info('QR room checkout', [
             'transaction_id' => $transaction->id,
