@@ -31,11 +31,18 @@
                     <p class="text-xs text-red-200">Facility Quality & Utilization Feedback Survey</p>
                 </div>
             </div>
-            @if ($selectedRoom)
-                <span class="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full border border-white/30 text-white">
-                    {{ $selectedRoom->name }}
-                </span>
-            @endif
+            <div class="flex items-center gap-2">
+                @auth
+                    <a href="{{ route('dashboard') }}" class="text-xs bg-white/10 hover:bg-white/20 text-white font-medium px-2.5 py-1 rounded-lg transition border border-white/20">
+                        ← Dashboard
+                    </a>
+                @endauth
+                @if ($selectedRoom)
+                    <span class="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full border border-white/30 text-white">
+                        {{ $selectedRoom->name }}
+                    </span>
+                @endif
+            </div>
         </div>
     </header>
 
@@ -313,10 +320,17 @@
                     </p>
 
                     @if ($transaction)
-                        <div class="text-center mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                        <div class="text-center mt-3 pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-center gap-3">
+                            @auth
+                                <a href="{{ route('dashboard') }}"
+                                   class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-semibold">
+                                    ← Back to Dashboard
+                                </a>
+                                <span class="text-gray-300 dark:text-gray-700">·</span>
+                            @endauth
                             <a href="{{ route('scan.return-success', $transaction->id) }}"
                                class="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-medium">
-                                Skip rating for now & view return receipt →
+                                Skip rating & view receipt →
                             </a>
                         </div>
                     @endif

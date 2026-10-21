@@ -56,11 +56,17 @@
                 </div>
             </div>
 
-            <div class="pt-2">
+            <div class="pt-2 space-y-2">
+                @auth
+                    <a href="{{ route('dashboard') }}"
+                       class="inline-flex items-center justify-center w-full py-2.5 px-4 bg-red-900 hover:bg-red-800 text-white font-semibold text-xs rounded-xl shadow-xs transition">
+                        ← Back to Dashboard
+                    </a>
+                @endauth
                 @if ($feedback->transaction)
                     <a href="{{ route('scan.return-success', $feedback->transaction->id) }}"
                        class="inline-flex items-center justify-center w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold text-xs rounded-xl transition">
-                        ← Back to Return Details
+                        View Return Receipt
                     </a>
                 @else
                     <a href="{{ route('feedback.create') }}"

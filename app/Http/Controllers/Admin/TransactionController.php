@@ -495,7 +495,11 @@ class TransactionController extends Controller
                     'room_id'        => $transaction->room_id,
                 ]);
             }
-            return back()->with('success', $msg);
+
+            return redirect()->route('feedback.create', [
+                'transaction_id' => $transaction->id,
+                'room_id'        => $transaction->room_id,
+            ])->with('return_success', true)->with('success', $msg);
         }
 
         // Tool transaction or Room transaction with specific tool returns (return_items)
@@ -604,6 +608,13 @@ class TransactionController extends Controller
                 'transaction_id' => $transaction->id,
                 'room_id'        => $transaction->room_id,
             ]);
+        }
+
+        if ($transaction->room_id && $transaction->status === 'returned') {
+            return redirect()->route('feedback.create', [
+                'transaction_id' => $transaction->id,
+                'room_id'        => $transaction->room_id,
+            ])->with('return_success', true)->with('success', $msg);
         }
 
         return back()->with('success', $msg);
