@@ -71,9 +71,25 @@
             </div>
         </div>
 
+        {{-- Instant 1-Tap Research Feedback Prompt Card --}}
+        @if ($transaction->room)
+            <div class="bg-gradient-to-br from-red-900 to-maroon-900 bg-red-900 text-white rounded-2xl shadow-lg p-5 mb-5 border border-red-800 text-center">
+                <span class="text-3xl block mb-2">⭐</span>
+                <h3 class="font-bold text-base text-white">How was your session in {{ $transaction->room->name }}?</h3>
+                <p class="text-xs text-red-100 mt-1 mb-4 leading-relaxed">
+                    Please take 30 seconds to rate cleanliness, equipment, and lab services to help us improve facilities.
+                </p>
+                <a href="{{ route('feedback.create', ['transaction_id' => $transaction->id, 'room_id' => $transaction->room->id]) }}"
+                   class="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-amber-400 hover:bg-amber-300 text-red-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow transition transform active:scale-95">
+                    <span>📝 Rate Your Experience (1-min Survey)</span>
+                    <span>→</span>
+                </a>
+            </div>
+        @endif
+
         <div class="text-center py-4">
             <p class="text-5xl mb-3">🎉</p>
-            <p class="text-gray-600">Thank you! The item has been marked as returned.</p>
+            <p class="text-gray-600">Thank you! The session has been closed in the system.</p>
         </div>
 
         <p class="text-center text-xs text-gray-400 mt-8">PUP-ITECH Lab Utilization System</p>

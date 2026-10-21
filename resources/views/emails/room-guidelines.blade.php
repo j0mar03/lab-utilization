@@ -370,7 +370,7 @@
                     Please don't forget to rate our service or leave a comment!
                 </p>
                 <p style="margin: 0 0 8px 0;">
-                    Your feedback helps us further improve our facilities and services. Simply scan the QR code located at the back of the room door to share your experience, or <a href="https://docs.google.com/forms/d/e/1FAIpQLSeJpqK2QkgW24AMcsJZL_CqeT0fa5Bu-PZXf40JAIo7qPdOmA/viewform?pli=1" target="_blank">click here to submit your feedback & rating ↗</a>.
+                    Your feedback helps us further improve our facilities and services. Simply scan the QR code located at the back of the room door, or <a href="{{ route('feedback.create', ['room_id' => $room->id, 'transaction_id' => $transaction->id]) }}" target="_blank">click here to submit your feedback & rating ↗</a>.
                 </p>
                 <p style="margin: 0;">
                     We value your input and continuously work to provide the best learning environment for you and your students.

@@ -25,6 +25,11 @@
                     </button>
                 </form>
 
+                <a href="{{ route('admin.feedbacks.index') }}"
+                   class="inline-flex items-center gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-2 rounded-lg shadow-sm transition">
+                    <span>⭐</span>
+                    <span>Client Feedback</span>
+                </a>
                 <a href="{{ route('admin.reports.audit', request()->query()) }}"
                    target="_blank"
                    class="inline-flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-lg shadow-sm transition">
@@ -221,7 +226,7 @@
             </div>
 
             {{-- ── High-Level Separated Summary Stats ─────────────────────── --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {{-- Room Utilization Card --}}
                 <div class="bg-white dark:bg-gray-800 rounded-xl border border-blue-100 dark:border-blue-900/40 shadow-sm p-5 relative overflow-hidden">
                     <div class="absolute top-0 left-0 h-1 w-full bg-blue-600"></div>
@@ -284,6 +289,27 @@
                         <span><strong>{{ count($softwareCounts) }}</strong> suites logged</span>
                     </div>
                 </div>
+
+                {{-- Client Feedback & Quality Card --}}
+                <a href="{{ route('admin.feedbacks.index') }}" class="group bg-white dark:bg-gray-800 rounded-xl border border-amber-200 dark:border-amber-900/40 shadow-sm p-5 relative overflow-hidden hover:border-amber-400 transition block">
+                    <div class="absolute top-0 left-0 h-1 w-full bg-amber-500"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            ⭐ Satisfaction
+                        </span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 group-hover:bg-amber-100 transition">
+                            EduQUAL
+                        </span>
+                    </div>
+                    <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-2">
+                        {{ $feedbackAvgOverall > 0 ? number_format($feedbackAvgOverall, 2) : '—' }}
+                        <span class="text-sm font-normal text-amber-500">★</span>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
+                        <span><strong>{{ $feedbackTotalResponses }}</strong> responses</span>
+                        <span class="text-emerald-600 dark:text-emerald-400 font-bold"><strong>{{ $feedbackSatisfactionRate }}%</strong> positive</span>
+                    </div>
+                </a>
 
                 {{-- System Overall Card --}}
                 <div class="bg-white dark:bg-gray-800 rounded-xl border border-indigo-100 dark:border-indigo-900/40 shadow-sm p-5 relative overflow-hidden">

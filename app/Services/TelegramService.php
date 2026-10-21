@@ -438,6 +438,49 @@ class TelegramService
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
+     * Send instant Telegram notification for client feedback (especially when issues are reported or score is low).
+     */
+    public function sendFeedbackNotification(\App\Models\Feedback $feedback): bool
+    {
+        $feedback->loadMissing(['room', 'tool', 'transaction']);
+
+        $roomName  = $feedback->room?->name ?? 'Facility';
+        $stars     = str_repeat('⭐', max(1, min(5, $feedback->overall_score)));
+        $capacity  = $feedback->capacity;
+        $name      = $feedback->respondent_name ?: 'Anonymous ' . $capacity;
+        $isLow     = $feedback->overall_score <= 2;
+
+        $icon  = $isLow ? '🚨' : '📝';
+        $title = $isLow ? 'LOW FEEDBACK ALERT' : 'NEW CLIENT FEEDBACK';
+
+        $message  = "{$icon} *{$title}: {$roomName}*\n";
+        $message .= "─────────────────────────\n";
+        $message .= "👤 *Respondent:* {$name} ({$capacity})\n";
+        $message .= "🚪 *Room:* {$roomName}\n";
+        $message .= "⭐ *Overall Rating:* {$stars} ({$feedback->overall_score}/5)\n";
+        $message .= "📊 *Construct Ratings:*\n";
+        $message .= "   • 🧹 Environment & Hygiene: {$feedback->q1_environment}/5\n";
+        $message .= "   • 🖥️ AV & Tech Availability: {$feedback->q2_resources}/5\n";
+        $message .= "   • 🦺 Safety Compliance: {$feedback->q3_safety}/5\n";
+        $message .= "   • 🤝 Staff & SA Service: {$feedback->q4_service}/5\n";
+        $message .= "   • 📱 QR System Usability: {$feedback->q5_system_experience}/5\n";
+
+        if (!empty($feedback->reported_issues)) {
+            $issueLabels = \App\Models\Feedback::issueLabels();
+            $issueTexts = array_map(fn($k) => $issueLabels[$k] ?? $k, $feedback->reported_issues);
+            $message .= "⚠️ *Reported Issues:*\n   • " . implode("\n   • ", $issueTexts) . "\n";
+        }
+
+        if ($feedback->suggestions) {
+            $message .= "💬 *Comments / Suggestions:*\n\"{$feedback->suggestions}\"\n";
+        }
+
+        $message .= "🕐 *Submitted:* " . now()->format('M d, Y g:i A') . "\n";
+
+        return $this->send($message, $this->defaultChatId, $feedback->transaction, 'telegram');
+    }
+
+    /**
      * Execute the HTTP call to the Telegram Bot API and log the result.
      */
     private function send(

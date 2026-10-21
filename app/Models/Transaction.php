@@ -256,6 +256,11 @@ class Transaction extends Model
         return $this->hasMany(NotificationLog::class);
     }
 
+    public function feedback(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Feedback::class);
+    }
+
     /**
      * Check if an active session is stale (abandoned from a previous day or overdue by > 6 hours).
      */

@@ -748,7 +748,30 @@ class ReportController extends Controller
             $peakDowPct   = $totalTransactions > 0 ? round(($maxDowVal / $totalTransactions) * 100, 1) : 0.0;
         }
 
-        // ── 12. Filter Dropdown Options ──────────────────────────────────────
+        // ── 12. Client Feedback & Satisfaction Index (OPCR / CHED) ──────────
+        $feedbackQuery = \App\Models\Feedback::query();
+        if ($roomIdFilter) {
+            $feedbackQuery->where('room_id', $roomIdFilter);
+        }
+        if ($dateFrom) {
+            $feedbackQuery->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $feedbackQuery->whereDate('created_at', '<=', $dateTo);
+        }
+
+        $allFeedbacks = $feedbackQuery->get();
+        $feedbackTotalResponses = $allFeedbacks->count();
+        $feedbackAvgOverall = $feedbackTotalResponses > 0 ? round($allFeedbacks->avg('overall_score'), 2) : 0;
+        $feedbackPositiveCount = $allFeedbacks->filter(fn($f) => $f->overall_score >= 4)->count();
+        $feedbackSatisfactionRate = $feedbackTotalResponses > 0 ? round(($feedbackPositiveCount / $feedbackTotalResponses) * 100, 1) : 0;
+        $feedbackAvgEnvironment = $feedbackTotalResponses > 0 ? round($allFeedbacks->avg('q1_environment'), 2) : 0;
+        $feedbackAvgResources = $feedbackTotalResponses > 0 ? round($allFeedbacks->avg('q2_resources'), 2) : 0;
+        $feedbackAvgSafety = $feedbackTotalResponses > 0 ? round($allFeedbacks->avg('q3_safety'), 2) : 0;
+        $feedbackAvgService = $feedbackTotalResponses > 0 ? round($allFeedbacks->avg('q4_service'), 2) : 0;
+        $feedbackAvgSystem = $feedbackTotalResponses > 0 ? round($allFeedbacks->avg('q5_system_experience'), 2) : 0;
+
+        // ── 13. Filter Dropdown Options ──────────────────────────────────────
         $departmentsDropdown = ['DECET', 'DOMIT', 'DEMET'];
         $roomsDropdown       = Room::orderByRaw("CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END, name")->get();
         $facultiesDropdown   = Faculty::where('is_active', true)->orderBy('name')->get();
@@ -823,6 +846,14 @@ class ReportController extends Controller
             'softwareCatalog',
             'totalTransactions',
             'totalReturned',
+            'feedbackTotalResponses',
+            'feedbackAvgOverall',
+            'feedbackSatisfactionRate',
+            'feedbackAvgEnvironment',
+            'feedbackAvgResources',
+            'feedbackAvgSafety',
+            'feedbackAvgService',
+            'feedbackAvgSystem',
             'roomAuditMatrix',
             'facultyAudit',
             'subjectAudit',

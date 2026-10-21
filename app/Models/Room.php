@@ -151,6 +151,11 @@ class Room extends Model
         return $this->hasMany(Transaction::class);
     }
 
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(Feedback::class);
+    }
+
     /**
      * Get the active / current open transaction for this room if any.
      */

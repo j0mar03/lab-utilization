@@ -39,6 +39,19 @@ class QrController extends Controller
     }
 
     /**
+     * Printable Feedback QR door posters for all rooms.
+     */
+    public function feedbackRooms(): View
+    {
+        $rooms = Room::orderByRaw("
+            CASE WHEN name LIKE 'LAB%' THEN 0 ELSE 1 END,
+            name
+        ")->get();
+
+        return view('admin.qr.feedback-rooms', compact('rooms'));
+    }
+
+    /**
      * Printable QR sheet for all active tools.
      */
     public function tools(): View

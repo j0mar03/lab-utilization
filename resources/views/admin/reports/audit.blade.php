@@ -92,22 +92,28 @@
         </div>
 
         {{-- Executive KPI Summary --}}
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div class="p-3.5 rounded-xl border border-blue-200 bg-blue-50/50">
-                <span class="text-xs font-semibold text-blue-700 block">Total Room Sessions</span>
-                <span class="text-2xl font-black text-gray-900">{{ number_format($totalRoomTransactions) }}</span>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+            <div class="p-3 rounded-xl border border-blue-200 bg-blue-50/50">
+                <span class="text-[11px] font-semibold text-blue-700 block">Total Room Sessions</span>
+                <span class="text-xl font-black text-gray-900">{{ number_format($totalRoomTransactions) }}</span>
             </div>
-            <div class="p-3.5 rounded-xl border border-blue-200 bg-blue-50/50">
-                <span class="text-xs font-semibold text-blue-700 block">Total Room Hours</span>
-                <span class="text-2xl font-black text-gray-900">{{ number_format($totalRoomHours, 1) }} hrs</span>
+            <div class="p-3 rounded-xl border border-blue-200 bg-blue-50/50">
+                <span class="text-[11px] font-semibold text-blue-700 block">Total Room Hours</span>
+                <span class="text-xl font-black text-gray-900">{{ number_format($totalRoomHours, 1) }} hrs</span>
             </div>
-            <div class="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50">
-                <span class="text-xs font-semibold text-emerald-700 block">Equipment Units Circulated</span>
-                <span class="text-2xl font-black text-gray-900">{{ number_format($totalToolUnitsBorrowed) }}</span>
+            <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50">
+                <span class="text-[11px] font-semibold text-emerald-700 block">Equipment Units</span>
+                <span class="text-xl font-black text-gray-900">{{ number_format($totalToolUnitsBorrowed) }}</span>
             </div>
-            <div class="p-3.5 rounded-xl border border-purple-200 bg-purple-50/50">
-                <span class="text-xs font-semibold text-purple-700 block">Software Sessions</span>
-                <span class="text-2xl font-black text-gray-900">{{ number_format($totalSoftwareRoomSessions) }} ({{ $softwareAdoptionRate }}%)</span>
+            <div class="p-3 rounded-xl border border-purple-200 bg-purple-50/50">
+                <span class="text-[11px] font-semibold text-purple-700 block">Software Sessions</span>
+                <span class="text-xl font-black text-gray-900">{{ number_format($totalSoftwareRoomSessions) }}</span>
+            </div>
+            <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/60">
+                <span class="text-[11px] font-semibold text-amber-800 block">Client Satisfaction</span>
+                <span class="text-xl font-black text-amber-900">
+                    {{ $feedbackTotalResponses > 0 ? $feedbackAvgOverall . ' ★ (' . $feedbackSatisfactionRate . '%)' : 'N/A' }}
+                </span>
             </div>
         </div>
 
@@ -386,7 +392,100 @@
             </div>
         </div>
 
-        {{-- ── SECTION 5: OFFICIAL SIGN-OFF BLOCK ─────────────────────────────── --}}
+        {{-- ── SECTION 5: CLIENT FEEDBACK & FACILITIES QUALITY MATRIX ───────── --}}
+        <div class="space-y-3">
+            <div class="border-b border-gray-200 pb-1">
+                <h3 class="font-bold text-sm text-gray-900 uppercase tracking-wider">
+                    5. Client Satisfaction & Quality Evaluation Matrix (EduQUAL / OPCR Verification)
+                </h3>
+                <p class="text-xs text-gray-500">
+                    Client satisfaction rating across academic constructs (Environment, AV/Tech, Safety, Staff Service, Digital System) complying with ISO 9001:2015 and PUP OPCR client satisfaction indicators.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-3">
+                <div class="bg-gray-50 p-2.5 rounded border border-gray-200 text-center">
+                    <span class="block text-gray-500 text-[10px] uppercase font-bold">Total Survey Responses (N)</span>
+                    <span class="text-base font-black text-gray-900">{{ number_format($feedbackTotalResponses) }}</span>
+                </div>
+                <div class="bg-amber-50 p-2.5 rounded border border-amber-200 text-center">
+                    <span class="block text-amber-700 text-[10px] uppercase font-bold">Overall Mean Rating</span>
+                    <span class="text-base font-black text-amber-800">{{ number_format($feedbackAvgOverall, 2) }} / 5.00 ★</span>
+                </div>
+                <div class="bg-emerald-50 p-2.5 rounded border border-emerald-200 text-center">
+                    <span class="block text-emerald-700 text-[10px] uppercase font-bold">Satisfaction Rate (≥4.0)</span>
+                    <span class="text-base font-black text-emerald-800">{{ $feedbackSatisfactionRate }}%</span>
+                </div>
+                <div class="bg-indigo-50 p-2.5 rounded border border-indigo-200 text-center">
+                    <span class="block text-indigo-700 text-[10px] uppercase font-bold">Standard Interpretation</span>
+                    <span class="text-xs font-bold text-indigo-900">
+                        @if($feedbackAvgOverall >= 4.5) Outstanding
+                        @elseif($feedbackAvgOverall >= 3.5) Very Satisfactory
+                        @elseif($feedbackAvgOverall >= 2.5) Satisfactory
+                        @elseif($feedbackTotalResponses > 0) Needs Improvement
+                        @else No Data
+                        @endif
+                    </span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 border border-gray-200 text-xs">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-bold text-gray-700">Construct / Dimension</th>
+                            <th class="px-3 py-2 text-left font-bold text-gray-700">Measurement Focus</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-700">Construct Mean</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-700">Scale Adjectival Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 font-bold text-gray-900">Q1. Environment & Cleanliness</td>
+                            <td class="px-3 py-2 text-gray-600">Physical lab neatness, organized tables/chairs, air-conditioning, trash disposal</td>
+                            <td class="px-3 py-2 text-center font-black text-gray-900">{{ number_format($feedbackAvgEnvironment, 2) }} / 5.00</td>
+                            <td class="px-3 py-2 text-center font-semibold text-gray-700">
+                                {{ $feedbackAvgEnvironment >= 4.5 ? 'Strongly Agree' : ($feedbackAvgEnvironment >= 3.5 ? 'Agree' : ($feedbackAvgEnvironment >= 2.5 ? 'Neutral' : ($feedbackTotalResponses > 0 ? 'Disagree' : '—'))) }}
+                            </td>
+                        </tr>
+                        <tr class="bg-gray-50/50">
+                            <td class="px-3 py-2 font-bold text-gray-900">Q2. Teaching Resources & AV Equipment</td>
+                            <td class="px-3 py-2 text-gray-600">Smart TV, Projector, HDMI, PC hardware, licensed software readiness</td>
+                            <td class="px-3 py-2 text-center font-black text-gray-900">{{ number_format($feedbackAvgResources, 2) }} / 5.00</td>
+                            <td class="px-3 py-2 text-center font-semibold text-gray-700">
+                                {{ $feedbackAvgResources >= 4.5 ? 'Strongly Agree' : ($feedbackAvgResources >= 3.5 ? 'Agree' : ($feedbackAvgResources >= 2.5 ? 'Neutral' : ($feedbackTotalResponses > 0 ? 'Disagree' : '—'))) }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 font-bold text-gray-900">Q3. Safety, Security & Compliance</td>
+                            <td class="px-3 py-2 text-gray-600">Electrical cabling safety, fire protocol compliance, lab door locking control</td>
+                            <td class="px-3 py-2 text-center font-black text-gray-900">{{ number_format($feedbackAvgSafety, 2) }} / 5.00</td>
+                            <td class="px-3 py-2 text-center font-semibold text-gray-700">
+                                {{ $feedbackAvgSafety >= 4.5 ? 'Strongly Agree' : ($feedbackAvgSafety >= 3.5 ? 'Agree' : ($feedbackAvgSafety >= 2.5 ? 'Neutral' : ($feedbackTotalResponses > 0 ? 'Disagree' : '—'))) }}
+                            </td>
+                        </tr>
+                        <tr class="bg-gray-50/50">
+                            <td class="px-3 py-2 font-bold text-gray-900">Q4. Laboratory Staff & Support Service</td>
+                            <td class="px-3 py-2 text-gray-600">Promptness, courtesy, and technical troubleshooting assistance from custodians & SAs</td>
+                            <td class="px-3 py-2 text-center font-black text-gray-900">{{ number_format($feedbackAvgService, 2) }} / 5.00</td>
+                            <td class="px-3 py-2 text-center font-semibold text-gray-700">
+                                {{ $feedbackAvgService >= 4.5 ? 'Strongly Agree' : ($feedbackAvgService >= 3.5 ? 'Agree' : ($feedbackAvgService >= 2.5 ? 'Neutral' : ($feedbackTotalResponses > 0 ? 'Disagree' : '—'))) }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 font-bold text-gray-900">Q5. Digital System & QR Ease of Use</td>
+                            <td class="px-3 py-2 text-gray-600">Mobile responsiveness, QR scanning speed, guidelines email dispatch, key checkout workflow</td>
+                            <td class="px-3 py-2 text-center font-black text-gray-900">{{ number_format($feedbackAvgSystem, 2) }} / 5.00</td>
+                            <td class="px-3 py-2 text-center font-semibold text-gray-700">
+                                {{ $feedbackAvgSystem >= 4.5 ? 'Strongly Agree' : ($feedbackAvgSystem >= 3.5 ? 'Agree' : ($feedbackAvgSystem >= 2.5 ? 'Neutral' : ($feedbackTotalResponses > 0 ? 'Disagree' : '—'))) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- ── SECTION 6: OFFICIAL SIGN-OFF BLOCK ─────────────────────────────── --}}
         <div class="pt-8 border-t-2 border-gray-300 mt-12">
             <p class="text-xs text-gray-500 mb-8 italic">
                 I hereby certify that the above laboratory and facilities utilization metrics are true, correct, and systematically recorded by the PUP-ITECH Lab Utilization Management System in adherence to university academic guidelines and Republic Act 10173 (Data Privacy Act of 2012).

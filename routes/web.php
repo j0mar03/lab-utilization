@@ -31,6 +31,16 @@ Route::get('/', function () {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PUBLIC FEEDBACK SURVEY ROUTES (Research & Client Satisfaction)
+// ═══════════════════════════════════════════════════════════════════════════
+Route::middleware(['throttle:60,1'])->prefix('feedback')->name('feedback.')->group(function () {
+    Route::get('/',                     [\App\Http\Controllers\FeedbackController::class, 'create'])->name('create');
+    Route::get('/room/{room}',          [\App\Http\Controllers\FeedbackController::class, 'create'])->name('room');
+    Route::post('/',                    [\App\Http\Controllers\FeedbackController::class, 'store'])->name('store');
+    Route::get('/success/{feedback}',   [\App\Http\Controllers\FeedbackController::class, 'success'])->name('success');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PHASE 2 — Public QR Scan Routes (no login, rate-limited)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -99,12 +109,17 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/reports/audit', [ReportController::class, 'audit'])->name('reports.audit');
             Route::post('/reports/send-telegram', [ReportController::class, 'sendTelegramSummary'])->name('reports.send-telegram');
 
+            // Feedback & Client Satisfaction Reports
+            Route::get('/feedbacks', [\App\Http\Controllers\Admin\FeedbackReportController::class, 'index'])->name('feedbacks.index');
+            Route::get('/feedbacks/export', [\App\Http\Controllers\Admin\FeedbackReportController::class, 'exportCsv'])->name('feedbacks.export');
+
             // Phase 2: Printable QR code sheets
             Route::prefix('qr')->name('qr.')->group(function () {
-                Route::get('/rooms',       [QrController::class, 'rooms'])->name('rooms');
-                Route::get('/tools',       [QrController::class, 'tools'])->name('tools');
-                Route::get('/room/{room}', [QrController::class, 'singleRoom'])->name('room');
-                Route::get('/tool/{tool}', [QrController::class, 'singleTool'])->name('tool');
+                Route::get('/rooms',          [QrController::class, 'rooms'])->name('rooms');
+                Route::get('/tools',          [QrController::class, 'tools'])->name('tools');
+                Route::get('/feedback-rooms', [QrController::class, 'feedbackRooms'])->name('feedback-rooms');
+                Route::get('/room/{room}',    [QrController::class, 'singleRoom'])->name('room');
+                Route::get('/tool/{tool}',    [QrController::class, 'singleTool'])->name('tool');
             });
 
             // Phase 1: Tool inventory management

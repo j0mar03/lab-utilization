@@ -55,6 +55,10 @@
                             {{ __('📈 Reports') }}
                         </x-nav-link>
 
+                        <x-nav-link :href="route('admin.feedbacks.index')" :active="request()->routeIs('admin.feedbacks.*')">
+                            {{ __('⭐ Feedback') }}
+                        </x-nav-link>
+
                         <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                             {{ __('👥 Users') }}
                         </x-nav-link>
@@ -157,6 +161,10 @@
 
                 <x-responsive-nav-link :href="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')">
                     {{ __('📈 Reports') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.feedbacks.index')" :active="request()->routeIs('admin.feedbacks.*')">
+                    {{ __('⭐ Feedback') }}
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
