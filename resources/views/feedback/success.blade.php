@@ -8,13 +8,15 @@
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen antialiased flex flex-col justify-between">
 
-    <header class="bg-red-900 text-white shadow-md">
-        <div class="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+    <header class="shadow-md py-4" style="background: linear-gradient(135deg, #7b1113 0%, #4a0809 100%) !important; color: #ffffff !important;">
+        <div class="max-w-md mx-auto px-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <span class="text-2xl">🔬</span>
-                <span class="text-sm font-bold uppercase tracking-wide">PUP-ITECH Lab System</span>
+                <span class="text-sm font-black uppercase tracking-wide" style="color: #ffffff !important;">PUP-ITECH Lab System</span>
             </div>
-            <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white">Feedback Logged</span>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full" style="background-color: rgba(255, 255, 255, 0.22); color: #ffffff !important; border: 1px solid rgba(255,255,255,0.4);">
+                Feedback Logged
+            </span>
         </div>
     </header>
 

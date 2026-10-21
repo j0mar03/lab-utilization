@@ -6,40 +6,117 @@
     <title>Facility & Laboratory Experience Feedback — PUP-ITECH</title>
     @vite(['resources/css/app.css'])
     <style>
-        .star-rating input[type="radio"] {
-            display: none;
+        /* PUP Maroon Header styling - guaranteed high-contrast white text on deep maroon */
+        .pup-header-maroon {
+            background: linear-gradient(135deg, #7b1113 0%, #4a0809 100%) !important;
+            color: #ffffff !important;
         }
-        .star-rating label {
+
+        /* 1-5 Rating Dimensions - pure CSS checked state (works on all devices/browsers) */
+        .rating-pill-container input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+
+        .rating-pill-container .rating-card {
+            border: 2px solid #e5e7eb;
+            background-color: #ffffff;
+            color: #1f2937;
+            transition: all 0.15s ease-in-out;
             cursor: pointer;
-            transition: transform 0.1s ease, color 0.15s ease;
         }
-        .star-rating label:hover,
-        .star-rating label:hover ~ label {
-            transform: scale(1.15);
+
+        .rating-pill-container:hover .rating-card {
+            border-color: #dc2626;
+            background-color: #fff1f2;
+        }
+
+        .rating-pill-container input[type="radio"]:checked + .rating-card {
+            background-color: #800000 !important;
+            border-color: #800000 !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 10px -2px rgba(128, 0, 0, 0.5) !important;
+            transform: scale(1.05) translateY(-2px);
+        }
+
+        .rating-pill-container input[type="radio"]:checked + .rating-card * {
+            color: #ffffff !important;
+        }
+
+        /* Capacity role selection checked state */
+        .capacity-container input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+
+        .capacity-container .capacity-card {
+            border: 2px solid #e5e7eb;
+            background-color: #ffffff;
+            color: #374151;
+            transition: all 0.15s ease-in-out;
+            cursor: pointer;
+        }
+
+        .capacity-container:hover .capacity-card {
+            border-color: #f87171;
+            background-color: #fef2f2;
+        }
+
+        .capacity-container input[type="radio"]:checked + .capacity-card {
+            background-color: #fee2e2 !important;
+            border-color: #991b1b !important;
+            color: #7f1d1d !important;
+            font-weight: 800 !important;
+            box-shadow: 0 2px 6px -1px rgba(153, 27, 27, 0.25) !important;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .rating-pill-container .rating-card {
+                border-color: #374151;
+                background-color: #1f2937;
+                color: #f3f4f6;
+            }
+            .capacity-container .capacity-card {
+                border-color: #374151;
+                background-color: #1f2937;
+                color: #f3f4f6;
+            }
         }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen antialiased flex flex-col justify-between">
 
     <!-- Top PUP Header -->
-    <header class="bg-maroon-850 bg-red-900 text-white shadow-md">
-        <div class="max-w-xl mx-auto px-4 py-4 flex items-center justify-between">
+    <header class="pup-header-maroon shadow-md py-4">
+        <div class="max-w-xl mx-auto px-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <span class="text-3xl">🔬</span>
                 <div>
-                    <h1 class="text-base font-extrabold tracking-tight uppercase leading-tight">PUP Institute of Technology</h1>
-                    <p class="text-xs text-red-200">Facility Quality & Utilization Feedback Survey</p>
+                    <h1 class="text-base font-extrabold tracking-tight uppercase leading-tight" style="color: #ffffff !important;">
+                        PUP Institute of Technology
+                    </h1>
+                    <p class="text-xs" style="color: #fecaca !important;">
+                        Facility Quality & Utilization Feedback Survey
+                    </p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
                 @auth
-                    <a href="{{ route('dashboard') }}" class="text-xs bg-white/10 hover:bg-white/20 text-white font-medium px-2.5 py-1 rounded-lg transition border border-white/20">
+                    <a href="{{ route('dashboard') }}" class="text-xs font-bold px-3 py-1.5 rounded-lg transition"
+                       style="background-color: rgba(255, 255, 255, 0.18); color: #ffffff !important; border: 1px solid rgba(255, 255, 255, 0.4);">
                         ← Dashboard
                     </a>
                 @endauth
                 @if ($selectedRoom)
-                    <span class="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full border border-white/30 text-white">
-                        {{ $selectedRoom->name }}
+                    <span class="text-xs font-black px-3 py-1.5 rounded-full"
+                          style="background-color: rgba(255, 255, 255, 0.22); color: #ffffff !important; border: 1px solid rgba(255, 255, 255, 0.45);">
+                        🚪 {{ $selectedRoom->name }}
                     </span>
                 @endif
             </div>
@@ -154,11 +231,12 @@
                         </label>
                         <div class="grid grid-cols-3 gap-2">
                             @foreach (['Student', 'Faculty', 'Guest'] as $cap)
-                                <label class="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-lg cursor-pointer text-xs font-semibold transition
-                                    {{ old('capacity', $defaultCapacity) === $cap ? 'bg-red-50 border-red-500 text-red-900 dark:bg-red-900/40 dark:border-red-600 dark:text-red-200' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300' }}">
-                                    <input type="radio" name="capacity" value="{{ $cap }}" class="text-red-600 focus:ring-red-500"
+                                <label class="capacity-container relative block select-none">
+                                    <input type="radio" name="capacity" value="{{ $cap }}"
                                            {{ old('capacity', $defaultCapacity) === $cap ? 'checked' : '' }} required>
-                                    <span>{{ $cap }}</span>
+                                    <div class="capacity-card flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-center">
+                                        <span>{{ $cap }}</span>
+                                    </div>
                                 </label>
                             @endforeach
                         </div>
@@ -257,14 +335,13 @@
                                     @php
                                         $valLabels = [1 => 'Poor', 2 => 'Fair', 3 => 'Good', 4 => 'Very Good', 5 => 'Excellent'];
                                     @endphp
-                                    <label class="flex flex-col items-center justify-center p-2 rounded-lg border text-center cursor-pointer transition text-xs
-                                        hover:border-red-400 hover:bg-red-50/50 dark:hover:bg-red-900/20
-                                        has-[:checked]:bg-red-600 has-[:checked]:border-red-600 has-[:checked]:text-white
-                                        border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300">
+                                    <label class="rating-pill-container relative block select-none">
                                         <input type="radio" name="{{ $q['field'] }}" value="{{ $val }}" required
-                                               {{ old($q['field']) == $val ? 'checked' : '' }} class="sr-only">
-                                        <span class="font-extrabold text-sm">{{ $val }}</span>
-                                        <span class="text-[9px] uppercase tracking-wider opacity-85 mt-0.5">{{ $valLabels[$val] }}</span>
+                                               {{ old($q['field']) == $val ? 'checked' : '' }}>
+                                        <div class="rating-card flex flex-col items-center justify-center p-2 rounded-xl text-center">
+                                            <span class="font-black text-sm sm:text-base leading-tight">{{ $val }}</span>
+                                            <span class="text-[9px] uppercase tracking-wider font-bold mt-1 opacity-80 leading-none">{{ $valLabels[$val] }}</span>
+                                        </div>
                                     </label>
                                 @endfor
                             </div>
