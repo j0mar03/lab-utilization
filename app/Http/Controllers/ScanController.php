@@ -101,6 +101,13 @@ class ScanController extends Controller
         });
 
         if ($lastReturnedTx) {
+            if ($lastReturnedTx->room_id) {
+                return redirect()->route('feedback.create', [
+                    'transaction_id' => $lastReturnedTx->id,
+                    'room_id'        => $lastReturnedTx->room_id,
+                ])->with('return_success', true);
+            }
+
             return redirect()->route('scan.return-success', $lastReturnedTx->id);
         }
 
@@ -346,6 +353,13 @@ class ScanController extends Controller
             'transaction_id' => $transaction->id,
             'borrower'       => $transaction->borrower_name,
         ]);
+
+        if ($transaction->room_id) {
+            return redirect()->route('feedback.create', [
+                'transaction_id' => $transaction->id,
+                'room_id'        => $transaction->room_id,
+            ])->with('return_success', true);
+        }
 
         return redirect()->route('scan.return-success', $transaction->id);
     }

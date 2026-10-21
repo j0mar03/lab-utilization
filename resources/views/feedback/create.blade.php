@@ -64,6 +64,36 @@
                 </div>
             @endif
 
+            @if ($transaction)
+                <div class="mb-5 p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-2xl shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <span class="text-3xl">🎉</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <h3 class="font-extrabold text-sm text-emerald-950 dark:text-emerald-100 flex items-center gap-2">
+                                    <span>Key Returned Successfully!</span>
+                                </h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 uppercase tracking-wide">
+                                    Session Closed
+                                </span>
+                            </div>
+                            <p class="text-xs text-emerald-800 dark:text-emerald-200 mt-1">
+                                <strong>{{ $transaction->room?->name ?? 'Room' }}</strong>
+                                @if ($transaction->returned_at)
+                                    · Returned at {{ $transaction->returned_at->format('g:i A') }}
+                                @endif
+                                @if ($transaction->checked_out_at && $transaction->returned_at)
+                                    (Duration: {{ $transaction->checked_out_at->diff($transaction->returned_at)->format('%hh %im') }})
+                                @endif
+                            </p>
+                            <p class="text-[11px] text-emerald-700 dark:text-emerald-300 mt-1">
+                                Please take 20 seconds to answer the 5 quick questions below so we can keep our laboratories well-maintained!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <form action="{{ route('feedback.store') }}" method="POST" class="space-y-6">
                 @csrf
 
@@ -80,18 +110,34 @@
 
                     <!-- Room Selector -->
                     <div>
-                        <label for="room_id" class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
                             Laboratory / Lecture Room <span class="text-red-500">*</span>
                         </label>
-                        <select name="room_id" id="room_id" required
-                                class="w-full text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-red-600 focus:border-red-600">
-                            <option value="">-- Select Laboratory or Classroom --</option>
-                            @foreach ($rooms as $r)
-                                <option value="{{ $r->id }}" {{ (old('room_id', $selectedRoom?->id) == $r->id) ? 'selected' : '' }}>
-                                    {{ $r->name }} ({{ $r->roomType() }})
-                                </option>
-                            @endforeach
-                        </select>
+                        @if ($transaction && $transaction->room)
+                            <input type="hidden" name="room_id" value="{{ $transaction->room->id }}">
+                            <div class="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-xl">🚪</span>
+                                    <div>
+                                        <span class="font-extrabold text-sm text-gray-900 dark:text-gray-100 block">{{ $transaction->room->name }}</span>
+                                        <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ $transaction->room->roomType() }} · {{ $transaction->room->department ?? 'General' }}</span>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 rounded-full border border-red-200 dark:border-red-800">
+                                    Active Session
+                                </span>
+                            </div>
+                        @else
+                            <select name="room_id" id="room_id" required
+                                    class="w-full text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-red-600 focus:border-red-600">
+                                <option value="">-- Select Laboratory or Classroom --</option>
+                                @foreach ($rooms as $r)
+                                    <option value="{{ $r->id }}" {{ (old('room_id', $selectedRoom?->id) == $r->id) ? 'selected' : '' }}>
+                                        {{ $r->name }} ({{ $r->roomType() }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        @endif
                     </div>
 
                     <!-- Capacity / Role -->
@@ -265,6 +311,15 @@
                     <p class="text-center text-[11px] text-gray-400 mt-2">
                         Takes less than 1 minute · All individual submissions remain confidential
                     </p>
+
+                    @if ($transaction)
+                        <div class="text-center mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                            <a href="{{ route('scan.return-success', $transaction->id) }}"
+                               class="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-medium">
+                                Skip rating for now & view return receipt →
+                            </a>
+                        </div>
+                    @endif
                 </div>
             </form>
         </div>

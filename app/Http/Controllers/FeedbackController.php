@@ -44,7 +44,11 @@ class FeedbackController extends Controller
         $defaultEmail = '';
 
         if ($transaction) {
-            $defaultCapacity = $transaction->borrower_type === 'faculty' ? 'Faculty' : 'Student';
+            $defaultCapacity = match (strtolower((string) $transaction->borrower_type)) {
+                'faculty' => 'Faculty',
+                'visitor', 'guest' => 'Guest',
+                default => 'Student',
+            };
             $defaultName = $transaction->borrower_name;
             $defaultEmail = $transaction->borrower_email;
         }
